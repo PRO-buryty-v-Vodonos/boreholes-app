@@ -420,13 +420,12 @@ function autoResize(el) {
 function toggleSidebar() {
   const sidebar = document.getElementById("sidebar");
   const handle = document.getElementById("drawerHandle");
+
   sidebar.classList.toggle("open");
-  // міняємо стрілку
-  if (sidebar.classList.contains("open")) {
-    handle.innerHTML = "❮"; // закрити
-  } else {
-    handle.innerHTML = "❯"; // відкрити
-  }
+
+  handle.innerHTML = sidebar.classList.contains("open")
+    ? "❮"
+    : "❯";
 }
 
 

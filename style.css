@@ -553,26 +553,40 @@ input, button {
 
 @media (max-width: 768px) {
 
-  /* ліва панель */
+  /* ===== ЛІВА ПАНЕЛЬ ===== */
   #sidebar {
-    transform: translateX(-100%);
-    transition: 0.3s;
     position: fixed;
-    z-index: 9999;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 260px;
+    background: #fff;
+    z-index: 10000;
+
+    transform: translateX(-100%);
+    transition: 0.3s ease;
   }
 
   #sidebar.open {
     transform: translateX(0);
   }
 
-  /* права панель (журнал) */
+  /* ===== ПРАВА ПАНЕЛЬ ===== */
   #formPanel {
-    transform: translateY(100%);
-    transition: 0.3s;
+    position: fixed;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 320px;
+    background: #fff;
+    z-index: 10000;
+
+    transform: translateX(100%);
+    transition: 0.3s ease;
   }
 
   #formPanel.open {
-    transform: translateY(0);
+    transform: translateX(0);
   }
 
 }
