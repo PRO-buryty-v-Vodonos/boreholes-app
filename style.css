@@ -1,0 +1,484 @@
+/* =========================
+   🗺 КАРТА
+========================= */
+#map {
+  height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* =========================
+   🧱 БАЗА
+========================= */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  overflow: hidden;
+}
+
+/* =========================
+   📋 ЛІВА ПАНЕЛЬ
+========================= */
+#sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 100vh;
+  background: #fff;
+  z-index: 2000;
+  padding: 14px 14px 18px 14px; /* трохи більше повітря справа/зліва */
+  box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+
+#sidebar.open {
+  transform: translateX(0);
+}
+
+/* =========================
+   📌 КНОПКА ВІДКРИТТЯ САЙДБАРА
+========================= */
+#drawerHandle {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  z-index: 3000;
+  width: 28px;
+  height: 60px;
+  background: #2d89ef;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+  font-size: 18px;
+  box-shadow: 2px 0 6px rgba(0,0,0,0.3);
+}
+
+/* =========================
+   📋 ПРАВА ПАНЕЛЬ
+========================= */
+#formPanel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 300px;
+  background: #fff;
+  padding: 12px;
+  z-index: 1500;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  border-radius: 8px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+/* =========================
+   🧾 ПОЛЯ ФОРМИ
+========================= */
+#formPanel input,
+#formPanel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+#formPanel textarea {
+  min-height: 50px;
+  max-height: 200px;
+  resize: none;
+  overflow-y: auto;
+}
+
+/* =========================
+   🔘 КНОПКИ
+========================= */
+#formPanel button {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #2d89ef;
+  color: white;
+}
+
+#formPanel button:hover {
+  background: #1b5fbf;
+}
+
+#formPanel .delete {
+  background: #d9534f;
+}
+
+/* =========================
+   📍 POPUP LEAFLET
+========================= */
+.leaflet-popup-content {
+  font-size: 14px;
+  line-height: 1.4;
+  max-width: 260px;
+}
+
+.leaflet-popup-content-wrapper {
+  padding: 8px;
+}
+
+/* =========================
+   🌙 ТЕМНА ТЕМА
+========================= */
+body.dark {
+  background: #1e1e1e;
+}
+
+body.dark #sidebar {
+  background: #2b2b2b;
+  color: #eee;
+}
+
+body.dark #formPanel {
+  background: #2b2b2b;
+  color: #eee;
+}
+
+body.dark #formPanel input,
+body.dark #formPanel textarea {
+  background: #3a3a3a;
+  color: #fff;
+  border: 1px solid #555;
+}
+
+body.dark .leaflet-popup-content-wrapper {
+  background: #2b2b2b;
+  color: #fff;
+}
+
+body.dark .leaflet-popup-tip {
+  background: #2b2b2b;
+}
+
+/* =========================
+   🔎 ПОШУК
+========================= */
+#searchBox {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  background: #e8f1ff;
+  padding: 6px 10px;
+  border-radius: 30px;
+  border: 2px solid #2d89ef;
+}
+
+#searchCity {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  width: 320px;
+}
+
+#clearSearch {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  color: #2d89ef;
+}
+
+/* =========================
+   📌 ПІДКАЗКИ ПОШУКУ
+========================= */
+#suggestions {
+  position: absolute;
+  top: 45px;
+  left: 0;
+  right: 0;
+
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 3001;
+}
+
+.suggestion-item {
+  padding: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.suggestion-item:hover {
+  background: #eee;
+}
+
+.btn-stack {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-icon {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.btn-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.btn {
+  flex: 1;
+  width: auto !important;   /* прибирає розтяг */
+  margin-top: 0 !important;
+  padding: 7px 10px !important;
+  font-size: 13px !important;
+}
+
+.btn.delete {
+  background: #d9534f;
+  color: #d9534f;
+}
+
+.btn-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #2d89ef;
+}
+
+/* delete рядок */
+.btn-row:has(.btn.delete) {
+  color: #d9534f;
+}
+
+.btn-icon svg {
+  stroke: currentColor;
+}
+
+#sidebar button,
+#sidebar h3,
+#sidebar .section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#sidebar .icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #2d89ef; /* GIS синій */
+}
+
+#sidebar .icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+}
+
+#layerControl {
+  padding: 6px 0;
+}
+
+#layerControl * {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.layer-active {
+  background: #2d89ef;
+  color: white;
+  border-radius: 6px;
+  padding: 6px;
+}
+
+#sidebar input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 5px 0;
+  padding: 6px 8px;  /* трохи компактніше */
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 13px;
+}
+
+.tool-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 8px 10px;
+  margin: 8px 0;
+
+  background: #f4f7ff;
+  border: 1px solid #d6e2ff;
+  border-radius: 8px;
+
+  font-size: 13px;
+  font-weight: 600;
+  color: #2d89ef;
+}
+
+.tool-header .icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tool-header svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+}
+
+body.dark .tool-header {
+  background: #2b2b2b;
+  border: 1px solid #444;
+  color: #6aa9ff;
+}
+
+.tool-header {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+#sidebar select {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 5px 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 13px;
+  background: white;
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0 10px 0;
+}
+
+.radio-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 2px 4px;   /* було 6px → компактніше */
+  border-radius: 6px;
+
+  cursor: pointer;
+  font-size: 13px;
+  border: 1px solid transparent;
+
+  line-height: 0,5;   /* щільніше по висоті */
+}
+
+.radio-item input {
+  display: none;
+}
+
+.radio-item .dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #2d89ef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* центрована точка */
+.radio-item input:checked + .dot::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: #2d89ef;
+  border-radius: 50%;
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%); /* 🔥 ідеальний центр */
+}
+
+.radio-item {
+  display: flex;
+  align-items: center; /* вертикаль ідеальна */
+}
+
+.radio-item input:checked ~ * {
+  color: #2d89ef;
+}
+
+.radio-item:hover {
+  background: #f3f7ff;
+}
+
+body.dark .radio-item {
+  padding: 4px 8px;
+}
+
+body.dark .radio-item {
+  color: #ddd;
+}
+
+body.dark .radio-item:hover {
+  background: #2b2b2b;
+}
+
+body.dark .radio-item .dot {
+  border-color: #6aa9ff;
+}
+
+body.dark .radio-item input:checked + .dot::after {
+  background: #6aa9ff;
+}
