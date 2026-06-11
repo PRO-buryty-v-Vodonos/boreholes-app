@@ -550,3 +550,29 @@ input, button {
 .leaflet-control {
   display: none; /* можна сховати +/− на мобілці */
 }
+
+@media (max-width: 768px) {
+
+  /* ліва панель */
+  #sidebar {
+    transform: translateX(-100%);
+    transition: 0.3s;
+    position: fixed;
+    z-index: 9999;
+  }
+
+  #sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* права панель (журнал) */
+  #formPanel {
+    transform: translateY(100%);
+    transition: 0.3s;
+  }
+
+  #formPanel.open {
+    transform: translateY(0);
+  }
+
+}
