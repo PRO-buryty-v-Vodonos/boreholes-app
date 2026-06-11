@@ -691,3 +691,17 @@ window.addEventListener("load", loadBoreholes);
 function startAddPoint() {
   alert("Тапни по карті для додавання точки");
 }
+
+function toggleFormPanel() {
+  const panel = document.getElementById("formPanel");
+  panel.classList.toggle("open");
+}
+
+window.saveBorehole = saveBorehole;
+window.updateBorehole = updateBorehole;
+window.deleteSelected = deleteSelected;
+window.toggleTheme = toggleTheme;
+window.toggleSidebar = toggleSidebar;
+window.toggleFormPanel = toggleFormPanel;
+window.startAddPoint = startAddPoint;
+window.clearSearch = clearSearch;
