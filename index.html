@@ -2,6 +2,10 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>My App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
   <title>Свердловини GIS</title>
   <link rel="stylesheet" href="style.css" />
   <link
@@ -114,11 +118,11 @@
      🗺 КАРТА
 ========================= -->
 <div id="map"></div>
-
+<button id="addBtn" onclick="startAddPoint()">＋</button>
 <!-- =========================
      📋 ПРАВА ПАНЕЛЬ (ФОРМА)
 ========================= -->
-<div id="formPanel">
+<div id="formPanel" class="bottom-sheet">
   <div class="header">
     <b>💧 Журнал свердловин</b>
   </div>
@@ -185,8 +189,6 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="app.js"></script>
 
-</body>
-</html>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
@@ -212,9 +214,7 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // 🔥 ГЛОБАЛЬНИЙ ДОСТУП
   window.db = db;
-
   window.firebaseAddDoc = addDoc;
   window.firebaseCollection = collection;
   window.firebaseGetDocs = getDocs;
@@ -223,3 +223,6 @@
   window.firebaseDeleteDoc = deleteDoc;
   window.firebaseDoc = doc;
 </script>
+
+</body>
+</html>

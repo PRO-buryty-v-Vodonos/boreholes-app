@@ -70,7 +70,7 @@ function switchLayer(name, el) {
 
 
 // 📦 база
-let boreholes = JSON.parse(localStorage.getItem("boreholes") || "[]");
+let boreholes = [];
 let currentLatLng = null;
 let selectedMarker = null;
 let selectedId = null;
@@ -118,7 +118,6 @@ map.on('click', async function(e) {
     Number(dist).toFixed(2);
 });
 
-// 💾 збереження
 async function saveBorehole() {
   if (!currentLatLng) {
     alert("Спочатку вибери місце на карті");
@@ -140,30 +139,40 @@ async function saveBorehole() {
 
   const dist = Number(distance || 0).toFixed(2);
 
-  // ⚠️ спочатку гарантуємо що input існує
   const input = document.getElementById("distance");
   if (input) input.value = dist;
 
   const data = {
-    id: Date.now(),
     num: document.getElementById("num").value,
     depth: document.getElementById("depth").value,
     water: document.getElementById("water").value,
     soil: document.getElementById("soil").value,
     note: document.getElementById("note").value,
     elevation: document.getElementById("elevation").value || "0",
-
-    // 🔥 ТІЛЬКИ ОДИН ФОРМАТ
     distance: dist,
-
     lat: currentLatLng.lat,
-    lng: currentLatLng.lng
+    lng: currentLatLng.lng,
+    createdAt: Date.now()
   };
 
-  boreholes.push(data);
-  localStorage.setItem("boreholes", JSON.stringify(boreholes));
+  try {
+    // 🔥 ЗБЕРЕЖЕННЯ В FIREBASE
+    const docRef = await firebaseAddDoc(
+      firebaseCollection(db, "boreholes"),
+      data
+    );
 
-  addMarker(data);
+    // додаємо id з Firebase
+    data.id = docRef.id;
+
+    // локально для карти
+    boreholes.push(data);
+    addMarker(data);
+
+  } catch (e) {
+    console.log("Firebase error:", e);
+    alert("Помилка збереження в Firebase");
+  }
 
   if (window.tempMarker) {
     map.removeLayer(window.tempMarker);
@@ -222,8 +231,8 @@ function addMarker(data) {
 }
 
 // 🗑 видалення
-function deleteSelected() {
-  // видалення тимчасової точки
+async function deleteSelected() {
+  // 🟡 видалення тимчасової точки
   if (window.tempMarker) {
     map.removeLayer(window.tempMarker);
     window.tempMarker = null;
@@ -232,20 +241,23 @@ function deleteSelected() {
     closePanel();
     return;
   }
-
-  // видалення збереженої точки
+  // 🔴 видалення збереженої точки (FIREBASE)
   if (selectedMarker && selectedId) {
-    map.removeLayer(selectedMarker);
-    boreholes = boreholes.filter(
-      b => b.id !== selectedId
-    );
-    localStorage.setItem(
-      "boreholes",
-      JSON.stringify(boreholes)
-    );
-    selectedMarker = null;
-    selectedId = null;
-    alert("Свердловину видалено");
+    try {
+      await firebaseDeleteDoc(
+        firebaseDoc(db, "boreholes", selectedId)
+      );
+      map.removeLayer(selectedMarker);
+      boreholes = boreholes.filter(
+        b => b.id !== selectedId
+      );
+      selectedMarker = null;
+      selectedId = null;
+      alert("Свердловину видалено");
+    } catch (e) {
+      console.log("Delete error:", e);
+      alert("Помилка видалення");
+    }
     return;
   }
   alert("Вибери точку");
@@ -263,10 +275,10 @@ function clearForm(){
 
 // 🧾 панель
 function openPanel(){
-document.getElementById("formPanel").style.display="block";
+  document.getElementById("formPanel").classList.add("open");
 }
 function closePanel(){
-document.getElementById("formPanel").style.display="none";
+  document.getElementById("formPanel").classList.remove("open");
 }
 
 function editBorehole(id){
@@ -293,40 +305,51 @@ function editBorehole(id){
   openPanel();
 }
 
-function updateBorehole() {
+async function updateBorehole() {
   if (!selectedId) {
     alert("Вибери свердловину");
     return;
   }
 
   let b = boreholes.find(x => x.id === selectedId);
+  if (!b) return;
 
-  b.num = document.getElementById("num").value;
-  b.depth = document.getElementById("depth").value;
-  b.water = document.getElementById("water").value;
-  b.soil = document.getElementById("soil").value;
-  b.note = document.getElementById("note").value;
+  const updatedData = {
+    num: document.getElementById("num").value,
+    depth: document.getElementById("depth").value,
+    water: document.getElementById("water").value,
+    soil: document.getElementById("soil").value,
+    note: document.getElementById("note").value
+  };
 
-  // ❗ ВАЖЛИВО: НЕ чіпаємо elevation
-  // b.elevation лишається як було
+  try {
+    // 🔥 UPDATE FIREBASE
+    await firebaseUpdateDoc(
+      firebaseDoc(db, "boreholes", selectedId),
+      updatedData
+    );
 
-  // ❗ distance теж НЕ перераховуємо якщо ти сказав що він фіксований
-  // b.distance лишається як було
+    // 🔵 оновлюємо локально
+    Object.assign(b, updatedData);
 
-  localStorage.setItem("boreholes", JSON.stringify(boreholes));
+    if (selectedMarker) {
+      selectedMarker.setPopupContent(`
+        <b>№${b.num}</b><br><br>
+        Ґрунт: ${b.soil}<br>
+        Глибина: ${b.depth} м<br><br>
+        Рівень першої води: ${b.water} м<br>
+        Висота над рівнем моря: ${b.elevation} м<br>
+        📍 Відстань до Полтави: ${b.distance} км<br>
+      `);
+    }
 
-  if (selectedMarker) {
-    selectedMarker.setPopupContent(`
-      <b>№${b.num}</b><br><br>
-      Ґрунт: ${b.soil}<br>
-      Глибина: ${b.depth} м<br><br>
-      Рівень першої води: ${b.water} м<br>
-      Висота над рівнем моря: ${b.elevation} м<br>
-      📍 Відстань до Полтави: ${b.distance} км<br>
-    `);
+    closePanel();
+    alert("Оновлено");
+
+  } catch (e) {
+    console.log("Update error:", e);
+    alert("Помилка оновлення Firebase");
   }
-  closePanel();
-  alert("Оновлено");
 }
 
 
@@ -649,4 +672,23 @@ async function testSave() {
   } catch (e) {
     console.error("Помилка Firebase:", e);
   }
+}
+
+async function loadBoreholes() {
+  const snap = await firebaseGetDocs(
+    firebaseCollection(db, "boreholes")
+  );
+
+  boreholes = snap.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+
+  boreholes.forEach(addMarker);
+}
+
+window.addEventListener("load", loadBoreholes);
+
+function startAddPoint() {
+  alert("Тапни по карті для додавання точки");
 }
