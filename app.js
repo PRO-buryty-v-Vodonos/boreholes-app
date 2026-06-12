@@ -203,8 +203,7 @@ map.on('click', async function(e) {
     dist = 0;
   }
 
-  document.getElementById("distance").value =
-    Number(dist).toFixed(2);
+  setDistanceUI(dist);
 });
 
 async function saveBorehole() {
@@ -228,8 +227,7 @@ async function saveBorehole() {
 
   const dist = Number(distance || 0).toFixed(2);
 
-  const input = document.getElementById("distance");
-  if (input) input.value = dist;
+  setDistanceUI(dist);
 
   const data = {
     num: document.getElementById("num").value,
@@ -237,7 +235,7 @@ async function saveBorehole() {
     water: document.getElementById("water").value,
     soil: document.getElementById("soil").value,
     note: document.getElementById("note").value,
-    elevation: document.getElementById("elevation").value || "0",
+    elevation: String(getFieldNumber("elevation")),
     distance: dist,
     lat: currentLatLng.lat,
     lng: currentLatLng.lng,
@@ -315,8 +313,8 @@ function addMarker(data) {
     document.getElementById("water").value = data.water || "";
     document.getElementById("soil").value = data.soil || "";
     document.getElementById("note").value = data.note || "";
-    document.getElementById("elevation").value = data.elevation || "";
-    document.getElementById("distance").value = data.distance || "";
+    setElevationUI(data.elevation || "");
+    setDistanceUI(data.distance || "");
   });
 
   marker.bindPopup(`
@@ -373,6 +371,7 @@ function clearForm(){
   document.getElementById("soil").value = "";
   document.getElementById("note").value = "";
   document.getElementById("elevation").value = "";
+  document.getElementById("distance").value = "";
 }
 
 
@@ -400,8 +399,8 @@ function editBorehole(id){
   document.getElementById("note").value = borehole.note;
 
   // ✅ ОЦЕ ВАЖЛИВО
-  document.getElementById("elevation").value = borehole.elevation || "";
-  document.getElementById("distance").value = borehole.distance || "";
+  setElevationUI(borehole.elevation || "");
+  setDistanceUI(borehole.distance || "");
 
   currentLatLng = {
     lat: borehole.lat,
@@ -426,8 +425,8 @@ async function updateBorehole() {
     water: document.getElementById("water").value,
     soil: document.getElementById("soil").value,
     note: document.getElementById("note").value,
-    elevation: document.getElementById("elevation").value || "0",
-    distance: document.getElementById("distance").value || "0"
+    elevation: String(getFieldNumber("elevation")),
+    distance: String(getFieldNumber("distance"))
   };
 
   try {
@@ -498,7 +497,7 @@ img.onload = function () {
   }
   const elevation = Math.round(sum / count);
   // 🧾 запис у форму
-  document.getElementById("elevation").value = elevation;
+  setElevationUI(elevation);
   // 🧷 popup тимчасової точки
   if (window.tempMarker) {
     window.tempMarker.setPopupContent(`
@@ -614,6 +613,7 @@ function renderPlaceSuggestions(results, message) {
   if (!box) return;
 
   box.innerHTML = "";
+  box.classList.toggle("has-results", Boolean(message || results.length));
 
   if (message) {
     const empty = document.createElement("div");
@@ -627,10 +627,31 @@ function renderPlaceSuggestions(results, message) {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "suggestion-item";
-    item.textContent = "🚩 " + getPlaceLabel(place);
+
+    const pin = document.createElement("span");
+    pin.className = "suggestion-pin";
+    item.appendChild(pin);
+
+    const text = document.createElement("span");
+    text.className = "suggestion-text";
+
+    const title = document.createElement("span");
+    title.className = "suggestion-title";
+    title.textContent = place.name;
+    text.appendChild(title);
+
+    const detail = getPlaceDetail(place);
+    if (detail) {
+      const subtitle = document.createElement("span");
+      subtitle.className = "suggestion-subtitle";
+      subtitle.textContent = detail;
+      text.appendChild(subtitle);
+    }
+
+    item.appendChild(text);
 
     item.addEventListener("click", () => {
-      goToPlace(place.lat, place.lng, place.name, getPlaceDetail(place));
+      goToPlace(place.lat, place.lng, place.name, detail);
     });
     box.appendChild(item);
   });
@@ -804,6 +825,7 @@ function selectPlace(lat, lon, name) {
   // 🧹 заповнюємо поле і чистимо підказки
   document.getElementById("searchCity").value = name;
   document.getElementById("suggestions").innerHTML = "";
+  document.getElementById("suggestions").classList.remove("has-results");
 
   // 🗺 просто переносимо карту
   map.setView([lat, lon], 14);
@@ -816,6 +838,7 @@ function removeSearchMarker() {
   }
   document.getElementById("searchCity").value = "";
   document.getElementById("suggestions").innerHTML = "";
+  document.getElementById("suggestions").classList.remove("has-results");
 }
 
 // 🚗 відстань по дорогах OSRM
@@ -843,12 +866,6 @@ async function getRoadDistanceKm(lat1, lng1, lat2, lng2) {
   return data.routes[0].distance / 1000;
 }
 
-function setDistanceUI(value) {
-  const el = document.getElementById("distance");
-  if (!el) return;
-  el.value = value ? Number(value).toFixed(2) : "";
-}
-
 function clearSearch() {
   if (activeSearchMarker) {
     map.removeLayer(activeSearchMarker);
@@ -857,6 +874,7 @@ function clearSearch() {
 
   document.getElementById("searchCity").value = "";
   document.getElementById("suggestions").innerHTML = "";
+  document.getElementById("suggestions").classList.remove("has-results");
 }
 
 function setActiveLayer(el) {
@@ -1120,6 +1138,7 @@ function goToPlace(lat, lng, name, detail = "") {
 
   document.getElementById("searchCity").value = label;
   document.getElementById("suggestions").innerHTML = "";
+  document.getElementById("suggestions").classList.remove("has-results");
 
   map.setView([lat, lng], 13);
 
