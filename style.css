@@ -509,13 +509,14 @@ body.dark .radio-item input:checked + .dot::after {
     transform: translateX(0);
   }
 
-  /* ВАЖЛИВО: стрілка має бути тут */
- #formHandle {
+  /* =========================
+   📌 СТРІЛКА ПРАВОЇ ПАНЕЛІ
+========================= */
+#formHandle {
   position: absolute;
   top: 50%;
-  right: 310px; /* ширина панелі */
+  right: 310px;
   transform: translateY(-50%);
-  z-index: 1600;
 
   width: 28px;
   height: 60px;
@@ -531,6 +532,12 @@ body.dark .radio-item input:checked + .dot::after {
   cursor: pointer;
 
   font-size: 18px;
+  z-index: 3000;
+
   box-shadow: -2px 0 6px rgba(0,0,0,0.3);
 }
+}
+
+#formPanel:not(.open) + #formHandle {
+  right: 0;
 }
