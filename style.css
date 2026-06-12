@@ -147,13 +147,44 @@ body {
    📍 POPUP LEAFLET
 ========================= */
 .leaflet-popup-content {
-  font-size: 14px;
-  line-height: 1.4;
-  max-width: 260px;
+  margin: 8px 25px 8px 12px;
+  font-size: 11.5px;
+  line-height: 1.25;
+  max-width: 185px;
+  color: #fff !important;
 }
 
 .leaflet-popup-content-wrapper {
-  padding: 8px;
+  padding: 0;
+  background: #2d89ef !important;
+  color: #fff !important;
+  border-radius: 7px;
+  box-shadow: 0 6px 18px rgba(18, 47, 84, 0.24);
+}
+
+.leaflet-popup-tip {
+  background: #2d89ef !important;
+}
+
+.leaflet-popup-close-button {
+  color: #fff !important;
+  opacity: 0.82;
+  top: 4px !important;
+  right: 4px !important;
+  width: 18px !important;
+  height: 18px !important;
+  padding: 0 !important;
+  font-size: 16px !important;
+  line-height: 16px !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #fff !important;
+  opacity: 1;
+}
+
+.leaflet-popup-content b {
+  font-size: 12px;
 }
 
 /* =========================
@@ -181,12 +212,12 @@ body.dark #formPanel textarea {
 }
 
 body.dark .leaflet-popup-content-wrapper {
-  background: #2b2b2b;
-  color: #fff;
+  background: #2d89ef !important;
+  color: #fff !important;
 }
 
 body.dark .leaflet-popup-tip {
-  background: #2b2b2b;
+  background: #2d89ef !important;
 }
 
 /* =========================
@@ -273,10 +304,10 @@ body.dark .leaflet-popup-tip {
   left: 0;
   right: 0;
 
-  background: white;
-  border: 1px solid rgba(16, 24, 40, 0.08);
-  border-radius: 8px;
-  box-shadow: 0 3px 8px rgba(60, 64, 67, 0.2), 0 10px 24px rgba(60, 64, 67, 0.16);
+  background: #2d89ef;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9px;
+  box-shadow: 0 8px 22px rgba(18, 47, 84, 0.28);
 
   max-height: 300px;
   overflow-y: auto;
@@ -296,7 +327,7 @@ body.dark .leaflet-popup-tip {
   text-align: left;
   padding: 10px 14px;
   cursor: pointer;
-  color: #202124;
+  color: #fff;
   border-radius: 0;
   line-height: 1.25;
   display: flex;
@@ -305,8 +336,8 @@ body.dark .leaflet-popup-tip {
 }
 
 .suggestion-item:hover {
-  background: #f1f3f4;
-  color: #202124;
+  background: #1f73d1;
+  color: #fff;
 }
 
 .suggestion-pin {
@@ -314,7 +345,7 @@ body.dark .leaflet-popup-tip {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #f1f3f4;
+  background: rgba(255, 255, 255, 0.18);
   flex: 0 0 28px;
 }
 
@@ -325,7 +356,7 @@ body.dark .leaflet-popup-tip {
   left: 9px;
   width: 8px;
   height: 8px;
-  border: 2px solid #5f6368;
+  border: 2px solid #fff;
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
 }
@@ -337,7 +368,7 @@ body.dark .leaflet-popup-tip {
   left: 12px;
   width: 3px;
   height: 3px;
-  background: #5f6368;
+  background: #fff;
   border-radius: 50%;
 }
 
@@ -351,7 +382,7 @@ body.dark .leaflet-popup-tip {
 .suggestion-title {
   font-size: 14px;
   font-weight: 500;
-  color: #202124;
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -359,7 +390,7 @@ body.dark .leaflet-popup-tip {
 
 .suggestion-subtitle {
   font-size: 12.5px;
-  color: #5f6368;
+  color: rgba(255, 255, 255, 0.82);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -367,7 +398,7 @@ body.dark .leaflet-popup-tip {
 
 .suggestion-empty {
   padding: 10px 14px;
-  color: #5f6368;
+  color: #fff;
   font-size: 13px;
 }
 

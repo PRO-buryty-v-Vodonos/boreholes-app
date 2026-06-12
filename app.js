@@ -318,9 +318,9 @@ function addMarker(data) {
   });
 
   marker.bindPopup(`
-    <b>№${data.num}</b><br><br>
+    <b>№${data.num}</b><br>
     Ґрунт: ${data.soil}<br>
-    Глибина: ${data.depth} м<br><br>
+    Глибина: ${data.depth} м<br>
     Рівень першої води: ${data.water} м<br>
     Висота над рівнем моря: ${data.elevation} м<br>
     ${data.distance ? `📍 Відстань до Полтави: ${Number(data.distance).toFixed(2)} км<br>` : ""}
@@ -443,9 +443,9 @@ async function updateBorehole() {
 
     if (selectedMarker) {
       selectedMarker.setPopupContent(`
-        <b>№${b.num}</b><br><br>
+        <b>№${b.num}</b><br>
         Ґрунт: ${b.soil}<br>
-        Глибина: ${b.depth} м<br><br>
+        Глибина: ${b.depth} м<br>
         Рівень першої води: ${b.water} м<br>
         Висота над рівнем моря: ${b.elevation} м<br>
         📍 Відстань до Полтави: ${b.distance} км<br>
@@ -501,7 +501,7 @@ img.onload = function () {
   // 🧷 popup тимчасової точки
   if (window.tempMarker) {
     window.tempMarker.setPopupContent(`
-      <b>Нова свердловина</b><br><br>
+      <b>Нова свердловина</b><br>
       Висота над рівнем моря: ${elevation} м
     `);
   }
@@ -559,6 +559,81 @@ function latLngToTile(lat, lng, zoom) {
 
 function decodeTerrain(r, g, b) {
   return (r * 256 + g + b / 256) - 32768;
+}
+
+function latLngToTile(lat, lng, zoom) {
+  const n = Math.pow(2, zoom);
+  const tileX = (lng + 180) / 360 * n;
+  const tileY =
+    (1 - Math.log(
+      Math.tan(lat * Math.PI / 180) +
+      1 / Math.cos(lat * Math.PI / 180)
+    ) / Math.PI) / 2 * n;
+
+  const x = Math.floor(tileX);
+  const y = Math.floor(tileY);
+
+  return {
+    x,
+    y,
+    pixelX: (tileX - x) * 256,
+    pixelY: (tileY - y) * 256
+  };
+}
+
+async function getElevation(lat, lng) {
+  const tile = latLngToTile(lat, lng, DEM_ZOOM);
+  const url = DEM_URL
+    .replace("{z}", DEM_ZOOM)
+    .replace("{x}", tile.x)
+    .replace("{y}", tile.y);
+
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+
+  img.onload = function () {
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 256;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+
+    const px = Math.round(tile.pixelX);
+    const py = Math.round(tile.pixelY);
+    let sum = 0;
+    let count = 0;
+
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const x = Math.min(255, Math.max(0, px + dx));
+        const y = Math.min(255, Math.max(0, py + dy));
+        const pixel = ctx.getImageData(x, y, 1, 1).data;
+        const height = decodeTerrain(pixel[0], pixel[1], pixel[2]);
+
+        if (!Number.isNaN(height)) {
+          sum += height;
+          count++;
+        }
+      }
+    }
+
+    const elevation = count ? Math.round(sum / count) : 0;
+    setElevationUI(elevation);
+
+    if (window.tempMarker) {
+      window.tempMarker.setPopupContent(`
+        <b>Нова свердловина</b><br>
+        Висота над рівнем моря: ${elevation} м
+      `);
+    }
+  };
+
+  img.onerror = function () {
+    alert("DEM не завантажився");
+  };
+
+  img.src = url;
 }
 
 function drawProfile(a, b) {
@@ -731,6 +806,9 @@ function getSearchNameCandidate(q) {
   return String(q || "")
     .split(",")[0]
     .replace(/\s+(Полтавський|Кременчуцький|Лубенський|Миргородський)\s+район.*$/i, "")
+    .replace(/\s+(Полтавської|Полтавська|Полтавськоі|Терешківської|Терешківська)\s+(міської|сільської|селищної)?\s*громади?.*$/i, "")
+    .replace(/\s+(міської|сільської|селищної)\s+громади?.*$/i, "")
+    .replace(/\s+громади?.*$/i, "")
     .replace(/\s+район.*$/i, "")
     .trim();
 }
@@ -777,26 +855,37 @@ function getRemoteDistrict(place) {
 }
 
 async function remotePlaceResults(q) {
-  const params = new URLSearchParams({
-    format: "jsonv2",
-    addressdetails: "1",
-    namedetails: "1",
-    "accept-language": "uk",
-    countrycodes: "ua",
-    dedupe: "1",
-    limit: "12",
-    q: `${q}, Полтавська область, Україна`
-  });
+  const simpleName = getSearchNameCandidate(q);
+  const queries = [...new Set([
+    q,
+    simpleName
+  ].filter(Boolean))];
 
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`);
-  if (!res.ok) {
-    throw new Error(`Nominatim не завантажився: ${res.status}`);
+  const allResults = [];
+
+  for (const query of queries) {
+    const params = new URLSearchParams({
+      format: "jsonv2",
+      addressdetails: "1",
+      namedetails: "1",
+      "accept-language": "uk",
+      countrycodes: "ua",
+      dedupe: "1",
+      limit: "12",
+      q: `${query}, Полтавська область, Україна`
+    });
+
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`);
+    if (!res.ok) {
+      throw new Error(`Nominatim не завантажився: ${res.status}`);
+    }
+
+    const data = await res.json();
+    allResults.push(...data);
   }
 
-  const data = await res.json();
-
   return uniquePlaces(
-    data
+    allResults
       .filter(isPoltavaRegionResult)
       .map(place => ({
         name: preferTypedUkrainianName(getRemotePlaceName(place), q),
@@ -820,13 +909,6 @@ function searchCityPRO(q) {
     return;
   }
 
-  const localResults = localPlaceResults(query);
-
-  if (localResults.length) {
-    renderPlaceSuggestions(localResults);
-    return;
-  }
-
   if (query.length < 2) {
     renderPlaceSuggestions([], "Введіть ще одну літеру");
     return;
@@ -847,8 +929,8 @@ function searchCityPRO(q) {
       }
 
       renderPlaceSuggestions(
-        [],
-        placesReady ? "Нічого не знайдено" : "База населених пунктів завантажується..."
+        localPlaceResults(query),
+        localPlaceResults(query).length ? "" : "Нічого не знайдено"
       );
     } catch (e) {
       console.error("Помилка онлайн-пошуку населеного пункту:", e);
@@ -1182,15 +1264,8 @@ function goToPlace(lat, lng, name, detail = "") {
 
   if (activeSearchMarker) {
     map.removeLayer(activeSearchMarker);
+    activeSearchMarker = null;
   }
-
-  const popup = document.createElement("div");
-  popup.textContent = label;
-
-  activeSearchMarker = L.marker([lat, lng])
-    .addTo(map)
-    .bindPopup(popup)
-    .openPopup();
 }
 
 window.searchCityPRO = searchCityPRO;
