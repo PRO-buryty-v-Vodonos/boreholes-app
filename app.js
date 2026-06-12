@@ -711,7 +711,7 @@ function syncRightArrow(){
 let PLACES = [];
 
 async function loadPlaces() {
-  const res = await fetch("./data/poltava.geojson");
+  const res = await fetch("./poltava.geojson.geojson");
   const data = await res.json();
 
   PLACES = data.features.map(f => ({
