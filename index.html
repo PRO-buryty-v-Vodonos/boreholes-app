@@ -210,25 +210,38 @@
   } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = {
-    apiKey: "ТВІЙ_KEY",
-    authDomain: "ТВІЙ_PROJECT.firebaseapp.com",
-    projectId: "ТВІЙ_PROJECT_ID",
-    storageBucket: "ТВІЙ_PROJECT.appspot.com",
-    messagingSenderId: "....",
-    appId: "...."
+    apiKey: "AIzaSyCxzts21niU3X3lusAq7SNmYwe5MrrtVK8",
+    authDomain: "boreholes-map.firebaseapp.com",
+    projectId: "boreholes-map",
+    storageBucket: "boreholes-map.firebasestorage.app",
+    messagingSenderId: "867022898841",
+    appId: "1:867022898841:web:098a32818004c5c5e85a08",
+    measurementId: "G-3BBS4PZPJ3"
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+  const firebaseConfigured = Object.values(firebaseConfig).every(value =>
+    value &&
+    !String(value).includes("ТВІЙ") &&
+    !String(value).includes("....")
+  );
 
-  window.db = db;
-  window.firebaseAddDoc = addDoc;
-  window.firebaseCollection = collection;
-  window.firebaseGetDocs = getDocs;
+  if (firebaseConfigured) {
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-  window.firebaseUpdateDoc = updateDoc;
-  window.firebaseDeleteDoc = deleteDoc;
-  window.firebaseDoc = doc;
+    window.db = db;
+    window.firebaseAddDoc = addDoc;
+    window.firebaseCollection = collection;
+    window.firebaseGetDocs = getDocs;
+
+    window.firebaseUpdateDoc = updateDoc;
+    window.firebaseDeleteDoc = deleteDoc;
+    window.firebaseDoc = doc;
+    window.firebaseReady = true;
+  } else {
+    window.firebaseReady = false;
+    console.warn("Firebase не налаштований. Точки зберігаються локально в браузері.");
+  }
 </script>
 
 </body>

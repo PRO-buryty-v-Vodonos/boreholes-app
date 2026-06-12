@@ -1,0 +1,57 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Полтава"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.5514,
+          49.5883
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Копили"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.45,
+          49.58
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Микільське"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.6,
+          49.55
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Карлівка"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.13,
+          49.45
+        ]
+      }
+    }
+  ]
+}

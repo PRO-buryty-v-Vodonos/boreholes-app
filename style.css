@@ -84,7 +84,7 @@ body {
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
   border-radius: 8px;
 
-  transform: translateX(100%);
+  transform: translateX(calc(100% + 12px));
   transition: transform 0.3s ease;
 }
 
@@ -244,6 +244,10 @@ body.dark .leaflet-popup-tip {
 }
 
 .suggestion-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
   padding: 6px;
   cursor: pointer;
   font-size: 13px;
@@ -251,6 +255,12 @@ body.dark .leaflet-popup-tip {
 
 .suggestion-item:hover {
   background: #eee;
+}
+
+.suggestion-empty {
+  padding: 8px;
+  color: #666;
+  font-size: 13px;
 }
 
 .btn-stack {
@@ -267,12 +277,15 @@ body.dark .leaflet-popup-tip {
 }
 
 .btn-icon {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: inherit;
+  background: #eef5ff;
+  border-radius: 6px;
+  flex: 0 0 32px;
 }
 
 .btn-icon svg {
@@ -284,13 +297,19 @@ body.dark .leaflet-popup-tip {
   flex: 1;
   width: auto !important;   /* прибирає розтяг */
   margin-top: 0 !important;
-  padding: 7px 10px !important;
+  padding: 8px 10px !important;
   font-size: 13px !important;
+  font-weight: 600;
+  color: #fff !important;
 }
 
 .btn.delete {
   background: #d9534f;
-  color: #d9534f;
+  color: #fff !important;
+}
+
+.btn.delete:hover {
+  background: #b83f3b !important;
 }
 
 .btn-row {
@@ -303,6 +322,10 @@ body.dark .leaflet-popup-tip {
 /* delete рядок */
 .btn-row:has(.btn.delete) {
   color: #d9534f;
+}
+
+.btn-row:has(.btn.delete) .btn-icon {
+  background: #fdecec;
 }
 
 .btn-icon svg {

@@ -76,6 +76,95 @@ let selectedMarker = null;
 let selectedId = null;
 let searchMarkers = [];
 let activeSearchMarker = null;
+let placeSearchTimer = null;
+let placeSearchRequestId = 0;
+let placesReady = false;
+const LOCAL_BOREHOLES_KEY = "boreholes-app:boreholes";
+
+function isFirebaseReady() {
+  return Boolean(
+    window.firebaseReady &&
+    window.db &&
+    window.firebaseAddDoc &&
+    window.firebaseCollection &&
+    window.firebaseGetDocs &&
+    window.firebaseUpdateDoc &&
+    window.firebaseDeleteDoc &&
+    window.firebaseDoc
+  );
+}
+
+function createLocalId() {
+  return `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function loadLocalBoreholes() {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_BOREHOLES_KEY) || "[]");
+  } catch (e) {
+    console.log("Local storage load error:", e);
+    return [];
+  }
+}
+
+function saveLocalBoreholes() {
+  localStorage.setItem(LOCAL_BOREHOLES_KEY, JSON.stringify(boreholes));
+}
+
+function upsertBoreholeLocal(data) {
+  const index = boreholes.findIndex(b => b.id === data.id);
+
+  if (index >= 0) {
+    boreholes[index] = data;
+  } else {
+    boreholes.push(data);
+  }
+
+  saveLocalBoreholes();
+}
+
+function hasFirebaseId(id) {
+  return id && !String(id).startsWith("local-");
+}
+
+function getNumberFromText(value) {
+  const match = String(value ?? "")
+    .replace(",", ".")
+    .match(/-?\d+(\.\d+)?/);
+
+  return match ? Number(match[0]) : 0;
+}
+
+function getFieldNumber(id) {
+  const el = document.getElementById(id);
+  return getNumberFromText(el ? el.value : "");
+}
+
+function formatDistanceField(value) {
+  const number = getNumberFromText(value);
+  return value === "" || value === null || value === undefined
+    ? ""
+    : `${number.toFixed(2)} км до центру Полтави`;
+}
+
+function formatElevationField(value) {
+  const number = getNumberFromText(value);
+  return value === "" || value === null || value === undefined
+    ? ""
+    : `${Math.round(number)} м від рівня моря`;
+}
+
+function setDistanceUI(value) {
+  const el = document.getElementById("distance");
+  if (!el) return;
+  el.value = formatDistanceField(value);
+}
+
+function setElevationUI(value) {
+  const el = document.getElementById("elevation");
+  if (!el) return;
+  el.value = formatElevationField(value);
+}
 
 // показати старі точки
 boreholes.forEach(addMarker);
@@ -156,22 +245,32 @@ async function saveBorehole() {
   };
 
   try {
-    // 🔥 ЗБЕРЕЖЕННЯ В FIREBASE
-    const docRef = await firebaseAddDoc(
-      firebaseCollection(db, "boreholes"),
-      data
-    );
+    if (isFirebaseReady()) {
+      const docRef = await firebaseAddDoc(
+        firebaseCollection(db, "boreholes"),
+        data
+      );
 
-    // додаємо id з Firebase
-    data.id = docRef.id;
+      data.id = docRef.id;
+    } else {
+      data.id = createLocalId();
+    }
 
-    // локально для карти
-    boreholes.push(data);
+    upsertBoreholeLocal(data);
     addMarker(data);
 
+    alert(isFirebaseReady()
+      ? "Точку збережено у Firebase"
+      : "Точку збережено локально. Firebase ще треба налаштувати");
+
   } catch (e) {
-    console.log("Firebase error:", e);
-    alert("Помилка збереження в Firebase");
+    console.log("Save error:", e);
+
+    data.id = createLocalId();
+    upsertBoreholeLocal(data);
+    addMarker(data);
+
+    alert("Firebase не відповів, тому точку збережено локально");
   }
 
   if (window.tempMarker) {
@@ -244,13 +343,17 @@ async function deleteSelected() {
   // 🔴 видалення збереженої точки (FIREBASE)
   if (selectedMarker && selectedId) {
     try {
-      await firebaseDeleteDoc(
-        firebaseDoc(db, "boreholes", selectedId)
-      );
+      if (isFirebaseReady() && hasFirebaseId(selectedId)) {
+        await firebaseDeleteDoc(
+          firebaseDoc(db, "boreholes", selectedId)
+        );
+      }
+
       map.removeLayer(selectedMarker);
       boreholes = boreholes.filter(
         b => b.id !== selectedId
       );
+      saveLocalBoreholes();
       selectedMarker = null;
       selectedId = null;
       alert("Свердловину видалено");
@@ -322,18 +425,22 @@ async function updateBorehole() {
     depth: document.getElementById("depth").value,
     water: document.getElementById("water").value,
     soil: document.getElementById("soil").value,
-    note: document.getElementById("note").value
+    note: document.getElementById("note").value,
+    elevation: document.getElementById("elevation").value || "0",
+    distance: document.getElementById("distance").value || "0"
   };
 
   try {
-    // 🔥 UPDATE FIREBASE
-    await firebaseUpdateDoc(
-      firebaseDoc(db, "boreholes", selectedId),
-      updatedData
-    );
+    if (isFirebaseReady() && hasFirebaseId(selectedId)) {
+      await firebaseUpdateDoc(
+        firebaseDoc(db, "boreholes", selectedId),
+        updatedData
+      );
+    }
 
     // 🔵 оновлюємо локально
     Object.assign(b, updatedData);
+    saveLocalBoreholes();
 
     if (selectedMarker) {
       selectedMarker.setPopupContent(`
@@ -351,7 +458,9 @@ async function updateBorehole() {
 
   } catch (e) {
     console.log("Update error:", e);
-    alert("Помилка оновлення Firebase");
+    Object.assign(b, updatedData);
+    saveLocalBoreholes();
+    alert("Firebase не відповів, але зміни збережено локально");
   }
 }
 
@@ -493,31 +602,202 @@ return groups;
 // 🔎 НОРМАЛЬНИЙ ПОШУК (СТАБІЛЬНИЙ)
 // ===============================
 
-async function searchCityPRO(q) {
+function normalizePlaceText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[’`]/g, "'")
+    .trim();
+}
+
+function renderPlaceSuggestions(results, message) {
   const box = document.getElementById("suggestions");
+  if (!box) return;
 
-  if (!q || q.length < 2) {
-    box.innerHTML = "";
+  box.innerHTML = "";
+
+  if (message) {
+    const empty = document.createElement("div");
+    empty.className = "suggestion-empty";
+    empty.textContent = message;
+    box.appendChild(empty);
     return;
   }
 
-  const query = q.toLowerCase();
+  results.forEach(place => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "suggestion-item";
+    item.textContent = "🚩 " + getPlaceLabel(place);
 
-  const results = PLACES.filter(p =>
-    p.name.toLowerCase().includes(query)
+    item.addEventListener("click", () => {
+      goToPlace(place.lat, place.lng, place.name, getPlaceDetail(place));
+    });
+    box.appendChild(item);
+  });
+}
+
+function getPlaceLabel(place) {
+  const detail = getPlaceDetail(place);
+  return detail ? `${place.name} — ${detail}` : place.name;
+}
+
+function getPlaceDetail(place) {
+  const parts = [
+    place.community,
+    place.district
+  ].filter(Boolean);
+
+  return [...new Set(parts)].join(", ");
+}
+
+function uniquePlaces(places) {
+  const seen = new Set();
+
+  return places.filter(place => {
+    const key = [
+      normalizePlaceText(place.name),
+      Number(place.lat).toFixed(4),
+      Number(place.lng).toFixed(4)
+    ].join("|");
+
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function localPlaceResults(q) {
+  const query = normalizePlaceText(q);
+
+  return PLACES
+    .filter(place => [
+      place.name,
+      place.community,
+      place.district,
+      getPlaceLabel(place)
+    ].some(value => normalizePlaceText(value).includes(query)))
+    .slice(0, 20);
+}
+
+function isPoltavaRegionResult(place) {
+  const text = normalizePlaceText([
+    place.display_name,
+    place.address?.state,
+    place.address?.region
+  ].filter(Boolean).join(" "));
+
+  return text.includes("полтав");
+}
+
+function getRemotePlaceName(place) {
+  const address = place.address || {};
+
+  return address.city ||
+    address.town ||
+    address.village ||
+    address.hamlet ||
+    address.settlement ||
+    address.locality ||
+    place.name ||
+    String(place.display_name || "").split(",")[0];
+}
+
+function getRemoteCommunity(place) {
+  const address = place.address || {};
+
+  return address.municipality ||
+    address.territorial_community ||
+    address.community ||
+    "";
+}
+
+function getRemoteDistrict(place) {
+  const address = place.address || {};
+
+  return address.county ||
+    address.district ||
+    "";
+}
+
+async function remotePlaceResults(q) {
+  const params = new URLSearchParams({
+    format: "jsonv2",
+    addressdetails: "1",
+    countrycodes: "ua",
+    dedupe: "1",
+    limit: "12",
+    q: `${q}, Полтавська область, Україна`
+  });
+
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`);
+  if (!res.ok) {
+    throw new Error(`Nominatim не завантажився: ${res.status}`);
+  }
+
+  const data = await res.json();
+
+  return uniquePlaces(
+    data
+      .filter(isPoltavaRegionResult)
+      .map(place => ({
+        name: getRemotePlaceName(place),
+        community: getRemoteCommunity(place),
+        district: getRemoteDistrict(place),
+        lat: Number(place.lat),
+        lng: Number(place.lon)
+      }))
+      .filter(place => place.name && !Number.isNaN(place.lat) && !Number.isNaN(place.lng))
   );
+}
 
-  if (!results.length) {
-    box.innerHTML = "<div class='suggestion-item'>Нічого не знайдено</div>";
+function searchCityPRO(q) {
+  const query = String(q || "").trim();
+  clearTimeout(placeSearchTimer);
+  placeSearchRequestId += 1;
+  const requestId = placeSearchRequestId;
+
+  if (!query) {
+    renderPlaceSuggestions([]);
     return;
   }
 
-  box.innerHTML = results.slice(0, 10).map(p => `
-    <div class="suggestion-item"
-      onclick="goToPlace(${p.lat}, ${p.lng}, \`${p.name}\`)">
-      🚩 ${p.name}
-    </div>
-  `).join("");
+  const localResults = localPlaceResults(query);
+
+  if (localResults.length) {
+    renderPlaceSuggestions(localResults);
+    return;
+  }
+
+  if (query.length < 2) {
+    renderPlaceSuggestions([], "Введіть ще одну літеру");
+    return;
+  }
+
+  renderPlaceSuggestions([], "Шукаю населений пункт...");
+
+  placeSearchTimer = setTimeout(async () => {
+    try {
+      const remoteResults = await remotePlaceResults(query);
+      if (requestId !== placeSearchRequestId) return;
+
+      if (remoteResults.length) {
+        PLACES = uniquePlaces([...PLACES, ...remoteResults])
+          .sort((a, b) => a.name.localeCompare(b.name, "uk"));
+        renderPlaceSuggestions(remoteResults);
+        return;
+      }
+
+      renderPlaceSuggestions(
+        [],
+        placesReady ? "Нічого не знайдено" : "База населених пунктів завантажується..."
+      );
+    } catch (e) {
+      console.error("Помилка онлайн-пошуку населеного пункту:", e);
+      if (requestId === placeSearchRequestId) {
+        renderPlaceSuggestions([], "Не вдалося виконати онлайн-пошук");
+      }
+    }
+  }, 350);
 }
 
 function selectPlace(lat, lon, name) {
@@ -570,6 +850,11 @@ function setDistanceUI(value) {
 }
 
 function clearSearch() {
+  if (activeSearchMarker) {
+    map.removeLayer(activeSearchMarker);
+    activeSearchMarker = null;
+  }
+
   document.getElementById("searchCity").value = "";
   document.getElementById("suggestions").innerHTML = "";
 }
@@ -643,6 +928,11 @@ window.addEventListener("load", function () {
 });
 
 async function testSave() {
+  if (!isFirebaseReady()) {
+    alert("Firebase ще не налаштований");
+    return;
+  }
+
   try {
     const docRef = await firebaseAddDoc(
       firebaseCollection(db, "test"),
@@ -660,14 +950,28 @@ async function testSave() {
 }
 
 async function loadBoreholes() {
-  const snap = await firebaseGetDocs(
-    firebaseCollection(db, "boreholes")
-  );
+  boreholes = loadLocalBoreholes();
 
-  boreholes = snap.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
+  if (isFirebaseReady()) {
+    try {
+      const snap = await firebaseGetDocs(
+        firebaseCollection(db, "boreholes")
+      );
+
+      const firebaseBoreholes = snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      const merged = new Map();
+      boreholes.forEach(item => merged.set(item.id, item));
+      firebaseBoreholes.forEach(item => merged.set(item.id, item));
+      boreholes = Array.from(merged.values());
+      saveLocalBoreholes();
+    } catch (e) {
+      console.log("Firebase load error:", e);
+    }
+  }
 
   boreholes.forEach(addMarker);
 }
@@ -710,29 +1014,127 @@ function syncRightArrow(){
 
 let PLACES = [];
 
-async function loadPlaces() {
-  const res = await fetch("./poltava.geojson.geojson");
-  const data = await res.json();
+async function loadPoltavaPlacesFromOSM() {
+  const query = `
+    [out:json][timeout:25];
+    (
+      area["ISO3166-2"="UA-53"]["admin_level"="4"];
+      area["boundary"="administrative"]["admin_level"="4"]["name:uk"="Полтавська область"];
+      area["boundary"="administrative"]["admin_level"="4"]["name"="Полтавская область"];
+    )->.poltava;
+    relation["boundary"="administrative"]["admin_level"="7"](area.poltava)->.communities;
+    foreach.communities->.community(
+      .community out tags;
+      .community map_to_area->.communityArea;
+      (
+        node["place"~"^(city|town|village|hamlet)$"](area.communityArea);
+        way["place"~"^(city|town|village|hamlet)$"](area.communityArea);
+        relation["place"~"^(city|town|village|hamlet)$"](area.communityArea);
+      );
+      out center tags;
+    );
+  `;
 
-  PLACES = data.features.map(f => ({
-    name: f.properties.name,
-    lat: f.geometry.coordinates[1],
-    lng: f.geometry.coordinates[0]
-  }));
+  const res = await fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    body: new URLSearchParams({ data: query })
+  });
+
+  if (!res.ok) {
+    throw new Error(`OSM не завантажився: ${res.status}`);
+  }
+
+  const data = await res.json();
+  let currentCommunity = "";
+
+  return data.elements
+    .map(item => {
+      const tags = item.tags || {};
+      const center = item.center || item;
+
+      if (tags.boundary === "administrative" && tags.admin_level === "7") {
+        currentCommunity = tags["name:uk"] || tags.name || "";
+        return null;
+      }
+
+      return {
+        name: tags["name:uk"] || tags.name,
+        community: currentCommunity,
+        lat: Number(center.lat),
+        lng: Number(center.lon)
+      };
+    })
+    .filter(place => place && place.name && !Number.isNaN(place.lat) && !Number.isNaN(place.lng));
 }
 
-window.addEventListener("load", async () => {
-  await loadPlaces();
-});
+async function loadPlaces() {
+  console.log("Починаю завантаження GEOJSON");
 
-function goToPlace(lat, lng, name) {
-  document.getElementById("searchCity").value = name;
+  try {
+    const res = await fetch("data/poltava.geojson.geojson");
+
+    console.log("Статус файлу:", res.status);
+    if (!res.ok) {
+      throw new Error(`GeoJSON не завантажився: ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    console.log("GEOJSON:", data);
+
+    PLACES = uniquePlaces(
+      data.features
+        .filter(f => f.geometry?.type === "Point")
+        .map(f => ({
+          name: f.properties.name,
+          lat: f.geometry.coordinates[1],
+          lng: f.geometry.coordinates[0]
+        }))
+        .filter(place => place.name && !Number.isNaN(place.lat) && !Number.isNaN(place.lng))
+    ).sort((a, b) => a.name.localeCompare(b.name, "uk"));
+
+    console.log("PLACES:", PLACES);
+
+  } catch(e) {
+    console.error("ПОМИЛКА GEOJSON:", e);
+  }
+
+  try {
+    if (PLACES.length < 50) {
+      const osmPlaces = await loadPoltavaPlacesFromOSM();
+      PLACES = uniquePlaces([...PLACES, ...osmPlaces])
+        .sort((a, b) => a.name.localeCompare(b.name, "uk"));
+      console.log("PLACES OSM:", PLACES);
+    }
+  } catch(e) {
+    console.error("ПОМИЛКА OSM:", e);
+  } finally {
+    placesReady = true;
+  }
+}
+
+window.addEventListener("load", loadPlaces);
+
+function goToPlace(lat, lng, name, detail = "") {
+  const label = detail ? `${name} — ${detail}` : name;
+
+  document.getElementById("searchCity").value = label;
   document.getElementById("suggestions").innerHTML = "";
 
   map.setView([lat, lng], 13);
 
-  L.marker([lat, lng])
+  if (activeSearchMarker) {
+    map.removeLayer(activeSearchMarker);
+  }
+
+  const popup = document.createElement("div");
+  popup.textContent = label;
+
+  activeSearchMarker = L.marker([lat, lng])
     .addTo(map)
-    .bindPopup(name)
+    .bindPopup(popup)
     .openPopup();
 }
+
+window.searchCityPRO = searchCityPRO;
+window.goToPlace = goToPlace;
