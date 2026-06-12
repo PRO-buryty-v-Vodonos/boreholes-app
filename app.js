@@ -712,8 +712,12 @@ function isPoltavaRegionResult(place) {
 
 function getRemotePlaceName(place) {
   const address = place.address || {};
+  const namedetails = place.namedetails || {};
 
-  return address.city ||
+  return namedetails["name:uk"] ||
+    namedetails["official_name:uk"] ||
+    namedetails["alt_name:uk"] ||
+    address.city ||
     address.town ||
     address.village ||
     address.hamlet ||
@@ -721,6 +725,38 @@ function getRemotePlaceName(place) {
     address.locality ||
     place.name ||
     String(place.display_name || "").split(",")[0];
+}
+
+function getSearchNameCandidate(q) {
+  return String(q || "")
+    .split(",")[0]
+    .replace(/\s+(Полтавський|Кременчуцький|Лубенський|Миргородський)\s+район.*$/i, "")
+    .replace(/\s+район.*$/i, "")
+    .trim();
+}
+
+function normalizeUaRuName(value) {
+  return normalizePlaceText(value)
+    .replace(/[іїы]/g, "и")
+    .replace(/[єэ]/g, "е")
+    .replace(/ґ/g, "г");
+}
+
+function preferTypedUkrainianName(remoteName, q) {
+  const typed = getSearchNameCandidate(q);
+  if (!typed) return remoteName;
+
+  const typedLoose = normalizeUaRuName(typed);
+  const remoteLoose = normalizeUaRuName(remoteName);
+
+  return typedLoose === remoteLoose ? typed : remoteName;
+}
+
+function getOSMName(tags) {
+  return tags["name:uk"] ||
+    tags["official_name:uk"] ||
+    tags["alt_name:uk"] ||
+    tags.name;
 }
 
 function getRemoteCommunity(place) {
@@ -744,6 +780,8 @@ async function remotePlaceResults(q) {
   const params = new URLSearchParams({
     format: "jsonv2",
     addressdetails: "1",
+    namedetails: "1",
+    "accept-language": "uk",
     countrycodes: "ua",
     dedupe: "1",
     limit: "12",
@@ -761,7 +799,7 @@ async function remotePlaceResults(q) {
     data
       .filter(isPoltavaRegionResult)
       .map(place => ({
-        name: getRemotePlaceName(place),
+        name: preferTypedUkrainianName(getRemotePlaceName(place), q),
         community: getRemoteCommunity(place),
         district: getRemoteDistrict(place),
         lat: Number(place.lat),
@@ -1071,12 +1109,12 @@ async function loadPoltavaPlacesFromOSM() {
       const center = item.center || item;
 
       if (tags.boundary === "administrative" && tags.admin_level === "7") {
-        currentCommunity = tags["name:uk"] || tags.name || "";
+        currentCommunity = getOSMName(tags) || "";
         return null;
       }
 
       return {
-        name: tags["name:uk"] || tags.name,
+        name: getOSMName(tags),
         community: currentCommunity,
         lat: Number(center.lat),
         lng: Number(center.lon)
