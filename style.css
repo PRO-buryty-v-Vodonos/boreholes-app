@@ -490,18 +490,20 @@ body.dark .radio-item input:checked + .dot::after {
   background: #6aa9ff;
 }
 
-@media (max-width: 768px) {
+@media (max-width:768px) {
 
   #formPanel {
     position: fixed;
     top: 0;
     right: 0;
-    width: 100%;
-    max-width: 340px;
-    height: 100%;
+
+    width: 300px;
+    max-width: 85%;
+    height: 100vh;
 
     transform: translateX(100%);
     transition: transform 0.3s ease;
+
     z-index: 10000;
   }
 
@@ -509,35 +511,38 @@ body.dark .radio-item input:checked + .dot::after {
     transform: translateX(0);
   }
 
-  /* =========================
-   📌 СТРІЛКА ПРАВОЇ ПАНЕЛІ
-========================= */
-#formHandle {
-  position: absolute;
-  top: 50%;
-  right: 310px;
-  transform: translateY(-50%);
 
-  width: 28px;
-  height: 60px;
+  /* стрілка правої панелі */
+  #formHandle {
+    position: fixed;
 
-  background: #2d89ef;
-  color: white;
+    top: 50%;
+    right: 0;
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    transform: translateY(-50%);
 
-  border-radius: 8px 0 0 8px;
-  cursor: pointer;
+    width: 28px;
+    height: 60px;
 
-  font-size: 18px;
-  z-index: 3000;
+    background: #2d89ef;
+    color: white;
 
-  box-shadow: -2px 0 6px rgba(0,0,0,0.3);
-}
-}
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-#formPanel:not(.open) + #formHandle {
-  right: 0;
+    border-radius: 8px 0 0 8px;
+
+    cursor: pointer;
+    z-index: 11000;
+
+    font-size: 18px;
+  }
+
+
+  /* коли панель відкрита — ручка біля неї */
+  #formPanel.open + #formHandle {
+    right: 300px;
+  }
+
 }
