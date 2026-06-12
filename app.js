@@ -719,11 +719,11 @@ async function loadPlaces() {
     lat: f.geometry.coordinates[1],
     lng: f.geometry.coordinates[0]
   }));
-
-  console.log("PLACES loaded:", PLACES.length);
 }
 
-loadPlaces();
+window.addEventListener("load", async () => {
+  await loadPlaces();
+});
 
 function goToPlace(lat, lng, name) {
   document.getElementById("searchCity").value = name;

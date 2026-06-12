@@ -15,7 +15,11 @@
 </head>
 <body>
    <div id="searchBox">
-  <input id="searchCity" placeholder="🔎 Пошук (Населені пункти Полтавської області)" />
+  <input
+  id="searchCity"
+  placeholder="🔎 Пошук (Населені пункти Полтавської області)"
+  oninput="searchCityPRO(this.value)"
+/>
   <button id="clearSearch" onclick="clearSearch()">✖</button>
   <div id="suggestions"></div>
 </div>

@@ -546,3 +546,7 @@ body.dark .radio-item input:checked + .dot::after {
     max-width: 90%;
   }
 }
+
+#suggestions {
+  z-index: 9999;
+}
