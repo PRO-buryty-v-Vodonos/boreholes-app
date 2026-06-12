@@ -532,3 +532,17 @@ body.dark .radio-item input:checked + .dot::after {
 #formPanel.open ~ .drawer-handle.right {
   transform: rotate(180deg);
 }
+
+@media (max-width: 768px) {
+  #searchCity {
+    width: 180px;
+    font-size: 13px;
+  }
+
+  #searchBox {
+    width: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 90%;
+  }
+}

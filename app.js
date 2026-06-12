@@ -495,49 +495,30 @@ return groups;
 
 async function searchCityPRO(q) {
   const box = document.getElementById("suggestions");
+
   if (!q || q.length < 2) {
     box.innerHTML = "";
     return;
   }
-  const url =
-    `https://nominatim.openstreetmap.org/search?format=json&limit=20&accept-language=uk&q=${q}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  // 📍 ПОЛТАВСЬКА ОБЛАСТЬ (фільтр)
-  const poltava = data.filter(p => {
-    const lat = parseFloat(p.lat);
-    const lon = parseFloat(p.lon);
-    return (
-      lat >= 48.8 &&
-      lat <= 50.6 &&
-      lon >= 32.0 &&
-      lon <= 35.8
-    );
-  });
-  const result = poltava.length > 0 ? poltava : data;
-  if (result.length === 0) {
+
+  const query = q.toLowerCase();
+
+  const results = PLACES.filter(p =>
+    p.name.toLowerCase().includes(query)
+  );
+
+  if (!results.length) {
     box.innerHTML = "<div class='suggestion-item'>Нічого не знайдено</div>";
     return;
   }
-  let html = "";
-  result.forEach(p => {
-    const name = p.display_name.split(",")[0];
-    html += `
-      <div class="suggestion-item"
-        onclick="selectPlace(${p.lat}, ${p.lon}, \`${p.display_name}\`)">
-        🚩 ${name}
-        <div style="font-size:11px;opacity:0.6">
-          ${p.display_name}
-        </div>
-      </div>
-    `;
-  });
-  box.innerHTML = html;
-}
 
-document.getElementById("searchCity").addEventListener("input", (e) => {
-  searchCityPRO(e.target.value);
-});
+  box.innerHTML = results.slice(0, 10).map(p => `
+    <div class="suggestion-item"
+      onclick="goToPlace(${p.lat}, ${p.lng}, \`${p.name}\`)">
+      🚩 ${p.name}
+    </div>
+  `).join("");
+}
 
 function selectPlace(lat, lon, name) {
   // 🧹 заповнюємо поле і чистимо підказки
@@ -725,4 +706,33 @@ function syncRightArrow(){
   } else {
     arrow.textContent = "❮";
   }
+}
+
+let PLACES = [];
+
+async function loadPlaces() {
+  const res = await fetch("./data/poltava.geojson");
+  const data = await res.json();
+
+  PLACES = data.features.map(f => ({
+    name: f.properties.name,
+    lat: f.geometry.coordinates[1],
+    lng: f.geometry.coordinates[0]
+  }));
+
+  console.log("PLACES loaded:", PLACES.length);
+}
+
+loadPlaces();
+
+function goToPlace(lat, lng, name) {
+  document.getElementById("searchCity").value = name;
+  document.getElementById("suggestions").innerHTML = "";
+
+  map.setView([lat, lng], 13);
+
+  L.marker([lat, lng])
+    .addTo(map)
+    .bindPopup(name)
+    .openPopup();
 }
