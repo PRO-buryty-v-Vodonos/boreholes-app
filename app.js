@@ -276,9 +276,12 @@ function clearForm(){
 // 🧾 панель
 function openPanel(){
   document.getElementById("formPanel").classList.add("open");
+syncRightArrow();
 }
+
 function closePanel(){
   document.getElementById("formPanel").classList.remove("open");
+syncRightArrow();
 }
 
 function editBorehole(id){
@@ -419,13 +422,15 @@ function autoResize(el) {
 
 function toggleSidebar() {
   const sidebar = document.getElementById("sidebar");
-  const handle = document.getElementById("drawerHandle");
+  const handle = document.querySelector(".drawer-handle.left");
 
   sidebar.classList.toggle("open");
 
-  handle.innerHTML = sidebar.classList.contains("open")
-    ? "❮"
-    : "❯";
+  if (sidebar.classList.contains("open")) {
+    handle.textContent = "❮";
+  } else {
+    handle.textContent = "❯";
+  }
 }
 
 
@@ -692,9 +697,14 @@ function startAddPoint() {
   alert("Тапни по карті для додавання точки");
 }
 
-function toggleFormPanel() {
+function toggleFormPanel(){
   const panel = document.getElementById("formPanel");
-  panel.classList.toggle("open");
+
+  if (panel.classList.contains("open")) {
+    closePanel();
+  } else {
+    openPanel();
+  }
 }
 
 window.saveBorehole = saveBorehole;
@@ -705,3 +715,14 @@ window.toggleSidebar = toggleSidebar;
 window.toggleFormPanel = toggleFormPanel;
 window.startAddPoint = startAddPoint;
 window.clearSearch = clearSearch;
+
+function syncRightArrow(){
+  const panel = document.getElementById("formPanel");
+  const arrow = document.querySelector(".drawer-handle.right");
+
+  if (panel.classList.contains("open")) {
+    arrow.textContent = "❯";
+  } else {
+    arrow.textContent = "❮";
+  }
+}
