@@ -42,12 +42,10 @@ body {
 /* =========================
    📌 КНОПКА ВІДКРИТТЯ САЙДБАРА
 ========================= */
-#drawerHandle {
-  position: absolute;
+.drawer-handle {
+  position: fixed;
   top: 50%;
-  left: 0;
   transform: translateY(-50%);
-  z-index: 3000;
   width: 28px;
   height: 60px;
   background: #2d89ef;
@@ -55,10 +53,20 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0 8px 8px 0;
   cursor: pointer;
+  z-index: 3000;
   font-size: 18px;
   box-shadow: 2px 0 6px rgba(0,0,0,0.3);
+}
+
+.drawer-handle.left {
+  left: 0;
+  border-radius: 0 8px 8px 0;
+}
+
+.drawer-handle.right {
+  right: 0;
+  border-radius: 8px 0 0 8px;
 }
 
 /* =========================
