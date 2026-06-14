@@ -1,10 +1,15 @@
 // 🗺 карта
-const map = L.map('map').setView([49.5, 32.0], 7);
+const map = L.map('map').setView([49.5883, 34.5514], 9);
 
 const POLTAVA_CENTER = {
   lat: 49.5883,
   lng: 34.5514
 };
+
+const POLTAVA_BOUNDARY_URL =
+  "https://nominatim.openstreetmap.org/search?format=geojson&polygon_geojson=1&limit=1&countrycodes=ua&q=%D0%9F%D0%BE%D0%BB%D1%82%D0%B0%D0%B2%D1%81%D1%8C%D0%BA%D0%B0%20%D0%BE%D0%B1%D0%BB%D0%B0%D1%81%D1%82%D1%8C,%20%D0%A3%D0%BA%D1%80%D0%B0%D1%97%D0%BD%D0%B0";
+
+let poltavaBoundaryLayer = null;
 
 // 🌍 базові шари
 const osm = L.tileLayer(
@@ -66,6 +71,35 @@ function switchLayer(name, el) {
     .forEach(x => x.classList.remove("layer-active"));
 
   el.classList.add("layer-active");
+}
+
+async function loadPoltavaBoundary() {
+  try {
+    const res = await fetch(POLTAVA_BOUNDARY_URL);
+    if (!res.ok) {
+      throw new Error(`Boundary load failed: ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    if (poltavaBoundaryLayer) {
+      map.removeLayer(poltavaBoundaryLayer);
+    }
+
+    poltavaBoundaryLayer = L.geoJSON(data, {
+      style: {
+        color: "#2d89ef",
+        weight: 3,
+        opacity: 0.95,
+        fillOpacity: 0
+      },
+      interactive: false
+    }).addTo(map);
+
+    poltavaBoundaryLayer.bringToFront();
+  } catch (e) {
+    console.log("Poltava boundary error:", e);
+  }
 }
 
 
@@ -1049,6 +1083,7 @@ window.addEventListener("load", function () {
 
   // карта
   initLayerControl();
+  loadPoltavaBoundary();
 
   // калькулятор
   bindCostInputs();
