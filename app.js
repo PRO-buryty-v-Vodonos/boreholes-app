@@ -180,7 +180,7 @@ function weatherText(code) {
 function setWeatherLoading(label) {
   const place = document.getElementById("weatherPlace");
   const desc = document.getElementById("weatherDesc");
-  if (place) place.textContent = label || "Полтава";
+  if (place) place.textContent = "Зараз";
   if (desc) desc.textContent = "Оновлюю...";
 }
 
