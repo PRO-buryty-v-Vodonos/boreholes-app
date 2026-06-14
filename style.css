@@ -570,7 +570,10 @@ body.dark .leaflet-popup-tip {
 }
 
 #layerControl {
-  padding: 6px 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 3px 0 5px 0;
 }
 
 .weather-title {
@@ -593,6 +596,10 @@ body.dark .leaflet-popup-tip {
   margin-bottom: 5px;
 }
 
+.weather-main {
+  min-width: 0;
+}
+
 .weather-head span {
   display: block;
   color: #2d89ef;
@@ -601,11 +608,50 @@ body.dark .leaflet-popup-tip {
   line-height: 1.25;
 }
 
+.weather-temp-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .weather-head b {
   display: block;
   color: #1d2939;
   font-size: 23px;
   line-height: 1.05;
+}
+
+.weather-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  color: #2d89ef;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px !important;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(45, 137, 239, 0.12);
+}
+
+.weather-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#weatherDate {
+  width: 74px;
+  height: 28px;
+  margin: 0;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 1px solid #d6e2ff;
+  background: #fff;
+  color: #2d89ef;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 #weatherRefresh {
@@ -709,16 +755,27 @@ body.dark .leaflet-popup-tip {
 #layerControl * {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 0;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 5px;
   cursor: pointer;
+  min-width: 0;
+  border-radius: 6px;
+  background: #f4f7ff;
+  color: #2d89ef;
+  font-size: 11.5px;
+  line-height: 1.15;
+  text-align: center;
 }
 
 .layer-active {
   background: #2d89ef;
   color: white;
-  border-radius: 6px;
-  padding: 6px;
+}
+
+#layerControl .layer-active {
+  background: #2d89ef;
+  color: #fff;
 }
 
 #sidebar input {
@@ -917,6 +974,13 @@ body.dark .weather-head b {
   color: #fff;
 }
 
+body.dark .weather-icon,
+body.dark #weatherDate {
+  background: #262a30;
+  border-color: #444;
+  color: #6aa9ff;
+}
+
 body.dark #weatherRefresh {
   background: #262a30 !important;
   border-color: #444 !important;
@@ -937,6 +1001,16 @@ body.dark .weather-grid div {
 }
 
 body.dark .weather-grid b {
+  color: #fff;
+}
+
+body.dark #layerControl * {
+  background: #30343a;
+  color: #6aa9ff;
+}
+
+body.dark #layerControl .layer-active {
+  background: #2d89ef;
   color: #fff;
 }
 
@@ -1104,6 +1178,11 @@ body.dark #totalCost {
     display: none;
   }
 
+  .layers-title,
+  #layerControl {
+    display: none;
+  }
+
   .weather-title {
     margin-top: 5px !important;
   }
@@ -1116,14 +1195,36 @@ body.dark #totalCost {
   .weather-head {
     gap: 6px;
     margin-bottom: 3px;
+    align-items: center;
   }
 
   .weather-head span {
-    font-size: 11.5px;
+    font-size: 10.8px;
   }
 
   .weather-head b {
-    font-size: 17px;
+    font-size: 15px;
+  }
+
+  .weather-temp-row {
+    gap: 4px;
+  }
+
+  .weather-icon {
+    width: 21px;
+    height: 21px;
+    font-size: 12px !important;
+  }
+
+  .weather-actions {
+    gap: 3px;
+  }
+
+  #weatherDate {
+    width: 62px;
+    height: 24px;
+    padding: 0 3px;
+    font-size: 9.8px;
   }
 
   #weatherRefresh {

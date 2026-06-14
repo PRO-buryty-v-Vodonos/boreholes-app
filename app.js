@@ -118,6 +118,8 @@ let lastWeatherPoint = {
   lng: POLTAVA_CENTER.lng,
   label: "Полтава"
 };
+let lastWeatherData = null;
+let lastWeatherDayIndex = 0;
 const LOCAL_BOREHOLES_KEY = "boreholes-app:boreholes";
 
 function removeTempPoint() {
@@ -177,6 +179,28 @@ function weatherText(code) {
   return codes[Number(code)] || "Поточна погода";
 }
 
+function weatherIcon(code) {
+  const value = Number(code);
+  if ([0, 1].includes(value)) return "☀";
+  if ([2].includes(value)) return "⛅";
+  if ([3, 45, 48].includes(value)) return "☁";
+  if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(value)) return "☔";
+  if ([71, 73, 75].includes(value)) return "❄";
+  if ([95].includes(value)) return "⚡";
+  return "☁";
+}
+
+function formatWeatherDate(date, index) {
+  if (index === 0) return "Сьогодні";
+  if (index === 1) return "Завтра";
+
+  const parsed = new Date(`${date}T12:00:00`);
+  return parsed.toLocaleDateString("uk-UA", {
+    day: "2-digit",
+    month: "2-digit"
+  });
+}
+
 function setWeatherLoading(label) {
   const place = document.getElementById("weatherPlace");
   const desc = document.getElementById("weatherDesc");
@@ -186,20 +210,105 @@ function setWeatherLoading(label) {
 
 function setWeatherEmpty(message) {
   const temp = document.getElementById("weatherTemp");
+  const icon = document.getElementById("weatherIcon");
   const desc = document.getElementById("weatherDesc");
   const wind = document.getElementById("weatherWind");
   const humidity = document.getElementById("weatherHumidity");
   const rain = document.getElementById("weatherRain");
 
   if (temp) temp.textContent = "--°";
+  if (icon) icon.textContent = "☁";
   if (desc) desc.textContent = message || "Погода недоступна";
   if (wind) wind.textContent = "-";
   if (humidity) humidity.textContent = "-";
   if (rain) rain.textContent = "-";
 }
 
-async function loadWeather(lat = POLTAVA_CENTER.lat, lng = POLTAVA_CENTER.lng, label = "Полтава") {
+function populateWeatherDates(data) {
+  const select = document.getElementById("weatherDate");
+  const dates = data?.daily?.time || [];
+  if (!select || !dates.length) return;
+
+  select.innerHTML = "";
+  dates.forEach((date, index) => {
+    const option = document.createElement("option");
+    option.value = String(index);
+    option.textContent = formatWeatherDate(date, index);
+    select.appendChild(option);
+  });
+
+  if (lastWeatherDayIndex >= dates.length) {
+    lastWeatherDayIndex = 0;
+  }
+  select.value = String(lastWeatherDayIndex);
+}
+
+function renderWeatherDay() {
+  if (!lastWeatherData) return;
+
+  const current = lastWeatherData.current || {};
+  const daily = lastWeatherData.daily || {};
+  const index = lastWeatherDayIndex;
+
+  const tempEl = document.getElementById("weatherTemp");
+  const iconEl = document.getElementById("weatherIcon");
+  const descEl = document.getElementById("weatherDesc");
+  const windEl = document.getElementById("weatherWind");
+  const humidityEl = document.getElementById("weatherHumidity");
+  const rainEl = document.getElementById("weatherRain");
+
+  const code = index === 0 ? current.weather_code : daily.weather_code?.[index];
+
+  if (index === 0) {
+    if (tempEl) {
+      tempEl.textContent = Number.isFinite(current.temperature_2m)
+        ? `${Math.round(current.temperature_2m)}°`
+        : "--°";
+    }
+    if (humidityEl) {
+      humidityEl.textContent = Number.isFinite(current.relative_humidity_2m)
+        ? `${Math.round(current.relative_humidity_2m)}%`
+        : "-";
+    }
+    if (rainEl) {
+      rainEl.textContent = Number.isFinite(current.precipitation)
+        ? `${current.precipitation} мм`
+        : "-";
+    }
+    if (windEl) {
+      windEl.textContent = Number.isFinite(current.wind_speed_10m)
+        ? `${Math.round(current.wind_speed_10m)} км/год`
+        : "-";
+    }
+  } else {
+    const max = daily.temperature_2m_max?.[index];
+    const min = daily.temperature_2m_min?.[index];
+
+    if (tempEl) {
+      tempEl.textContent = Number.isFinite(max) && Number.isFinite(min)
+        ? `${Math.round(max)}/${Math.round(min)}°`
+        : "--°";
+    }
+    if (humidityEl) humidityEl.textContent = "прогноз";
+    if (rainEl) {
+      const rain = daily.precipitation_sum?.[index];
+      rainEl.textContent = Number.isFinite(rain) ? `${rain} мм` : "-";
+    }
+    if (windEl) {
+      const wind = daily.wind_speed_10m_max?.[index];
+      windEl.textContent = Number.isFinite(wind) ? `${Math.round(wind)} км/год` : "-";
+    }
+  }
+
+  if (iconEl) iconEl.textContent = weatherIcon(code);
+  if (descEl) descEl.textContent = weatherText(code);
+}
+
+async function loadWeather(lat = POLTAVA_CENTER.lat, lng = POLTAVA_CENTER.lng, label = "Полтава", keepDate = false) {
   lastWeatherPoint = { lat, lng, label };
+  if (!keepDate) {
+    lastWeatherDayIndex = 0;
+  }
   setWeatherLoading(label);
 
   try {
@@ -207,31 +316,29 @@ async function loadWeather(lat = POLTAVA_CENTER.lat, lng = POLTAVA_CENTER.lng, l
     url.searchParams.set("latitude", lat);
     url.searchParams.set("longitude", lng);
     url.searchParams.set("current", "temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,weather_code");
+    url.searchParams.set("daily", "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max");
+    url.searchParams.set("forecast_days", "7");
     url.searchParams.set("timezone", "auto");
 
     const res = await fetch(url.toString());
     if (!res.ok) throw new Error(`Weather failed: ${res.status}`);
 
-    const data = await res.json();
-    const current = data.current || {};
-
-    document.getElementById("weatherTemp").textContent =
-      Number.isFinite(current.temperature_2m) ? `${Math.round(current.temperature_2m)}°` : "--°";
-    document.getElementById("weatherDesc").textContent = weatherText(current.weather_code);
-    document.getElementById("weatherWind").textContent =
-      Number.isFinite(current.wind_speed_10m) ? `${Math.round(current.wind_speed_10m)} км/год` : "-";
-    document.getElementById("weatherHumidity").textContent =
-      Number.isFinite(current.relative_humidity_2m) ? `${Math.round(current.relative_humidity_2m)}%` : "-";
-    document.getElementById("weatherRain").textContent =
-      Number.isFinite(current.precipitation) ? `${current.precipitation} мм` : "-";
+    lastWeatherData = await res.json();
+    populateWeatherDates(lastWeatherData);
+    renderWeatherDay();
   } catch (e) {
     console.log("Weather error:", e);
     setWeatherEmpty("Погода недоступна");
   }
 }
 
+function changeWeatherDate(value) {
+  lastWeatherDayIndex = Number(value) || 0;
+  renderWeatherDay();
+}
+
 function refreshWeather() {
-  loadWeather(lastWeatherPoint.lat, lastWeatherPoint.lng, lastWeatherPoint.label);
+  loadWeather(lastWeatherPoint.lat, lastWeatherPoint.lng, lastWeatherPoint.label, true);
 }
 
 function isFirebaseReady() {
@@ -476,6 +583,29 @@ function renderPlaceStats(place) {
 }
 
 // показати старі точки
+function renderPlaceStats(place) {
+  const stats = getPlaceStats(place);
+  const label = getStatsPlaceLabel({
+    name: place?.placeName || place?.name || "",
+    community: place?.community || ""
+  });
+
+  const placeEl = document.querySelector(".stats-place");
+  const countEl = document.getElementById("statsCount");
+  const depthEl = document.getElementById("statsDepth");
+  const waterEl = document.getElementById("statsWater");
+  const soilEl = document.getElementById("statsSoil");
+
+  if (depthEl?.previousElementSibling) depthEl.previousElementSibling.textContent = "Глибина від-до";
+  if (waterEl?.previousElementSibling) waterEl.previousElementSibling.textContent = "До першої води";
+
+  if (placeEl) placeEl.textContent = label || "Вибери свердловину або населений пункт";
+  if (countEl) countEl.textContent = stats ? String(stats.count) : "0";
+  if (depthEl) depthEl.textContent = stats?.depthRange || "-";
+  if (waterEl) waterEl.textContent = stats?.waterRange || "-";
+  if (soilEl) soilEl.textContent = stats?.soil || "-";
+}
+
 boreholes.forEach(addMarker);
 // 📍 клік по карті
 map.on('click', async function(e) {
@@ -1119,6 +1249,12 @@ function getPlaceLabel(place) {
   return detail ? `${place.name} — ${detail}` : place.name;
 }
 
+function getStatsPlaceLabel(place) {
+  const name = place?.placeName || place?.name || "";
+  const community = place?.community || "";
+  return community ? `${name} — ${community}` : name;
+}
+
 function getPlaceDetail(place) {
   const parts = [
     place.community,
@@ -1556,6 +1692,7 @@ window.toggleFormPanel = toggleFormPanel;
 window.startAddPoint = startAddPoint;
 window.clearSearch = clearSearch;
 window.refreshWeather = refreshWeather;
+window.changeWeatherDate = changeWeatherDate;
 
 function syncRightArrow(){
   const panel = document.getElementById("formPanel");
@@ -1679,7 +1816,7 @@ function goToPlace(lat, lng, name, detail = "") {
   document.getElementById("suggestions").classList.remove("has-results");
 
   map.setView([lat, lng], 13);
-  renderPlaceStats({ name, placeName: name, label });
+  renderPlaceStats({ name, placeName: name, community: String(detail || "").split(",")[0].trim() });
   loadWeather(lat, lng, name);
 
   if (activeSearchMarker) {

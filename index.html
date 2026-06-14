@@ -9,7 +9,7 @@
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
-  <link rel="stylesheet" href="style.css?v=20260614-15" />
+  <link rel="stylesheet" href="style.css?v=20260614-17" />
 </head>
 <body>
    <div id="searchBox">
@@ -133,7 +133,7 @@
 
   <hr>
 
-  <div class="section-title">
+  <div class="section-title layers-title">
     <span class="icon">
       <!-- layers -->
       <svg viewBox="0 0 24 24" fill="none">
@@ -163,11 +163,17 @@
   </div>
   <div id="weatherBox" class="weather-box">
     <div class="weather-head">
-      <div>
+      <div class="weather-main">
         <span id="weatherPlace">Зараз</span>
-        <b id="weatherTemp">--°</b>
+        <div class="weather-temp-row">
+          <b id="weatherTemp">--°</b>
+          <span id="weatherIcon" class="weather-icon" aria-hidden="true">☀</span>
+        </div>
       </div>
-      <button id="weatherRefresh" type="button" onclick="refreshWeather()" title="Оновити погоду">↻</button>
+      <div class="weather-actions">
+        <select id="weatherDate" onchange="changeWeatherDate(this.value)" title="Дата погоди"></select>
+        <button id="weatherRefresh" type="button" onclick="refreshWeather()" title="Оновити погоду">↻</button>
+      </div>
     </div>
     <div id="weatherDesc" class="weather-desc">Завантажую...</div>
     <div class="weather-grid">
@@ -258,7 +264,7 @@
      📦 SCRIPTS
 ========================= -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=20260614-14"></script>
+<script src="app.js?v=20260614-16"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
