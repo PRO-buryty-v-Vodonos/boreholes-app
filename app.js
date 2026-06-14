@@ -115,6 +115,38 @@ let placeSearchRequestId = 0;
 let placesReady = false;
 const LOCAL_BOREHOLES_KEY = "boreholes-app:boreholes";
 
+function removeTempPoint() {
+  if (!window.tempMarker) return;
+
+  const marker = window.tempMarker;
+  window.tempMarker = null;
+
+  if (map.hasLayer(marker)) {
+    map.removeLayer(marker);
+  }
+
+  currentLatLng = null;
+  selectedId = null;
+  selectedMarker = null;
+  clearForm();
+  closePanel();
+}
+
+function bindTempMarkerClose(marker) {
+  marker.on("popupopen", function (e) {
+    const popupEl = e.popup && e.popup.getElement ? e.popup.getElement() : null;
+    const closeBtn = popupEl ? popupEl.querySelector(".leaflet-popup-close-button") : null;
+
+    if (!closeBtn) return;
+
+    closeBtn.addEventListener("click", function () {
+      if (window.tempMarker === marker) {
+        removeTempPoint();
+      }
+    }, { once: true });
+  });
+}
+
 function isFirebaseReady() {
   return Boolean(
     window.firebaseReady &&
@@ -192,12 +224,168 @@ function setDistanceUI(value) {
   const el = document.getElementById("distance");
   if (!el) return;
   el.value = formatDistanceField(value);
+  setTransportByDistance(value);
 }
 
 function setElevationUI(value) {
   const el = document.getElementById("elevation");
   if (!el) return;
   el.value = formatElevationField(value);
+}
+
+function getTransportCostByDistance(distanceKm) {
+  const roundTripKm = getNumberFromText(distanceKm) * 2;
+  if (!roundTripKm) return 0;
+  if (roundTripKm <= 50) return 2000;
+  if (roundTripKm <= 75) return 2500;
+  return 3000;
+}
+
+function setTransportByDistance(distanceKm) {
+  const el = document.getElementById("transportCost");
+  if (!el) return;
+
+  const cost = getTransportCostByDistance(distanceKm);
+  el.value = cost ? String(cost) : "";
+  calculateCost();
+}
+
+function setDefaultCostValues() {
+  const filter = document.getElementById("filterCost");
+  if (filter && !filter.value) {
+    filter.value = "600";
+  }
+}
+
+function getPlaceKey(place) {
+  if (!place) return "";
+
+  return [
+    place.placeName || place.name || "",
+    place.community || ""
+  ].map(normalizePlaceText).join("|");
+}
+
+function getPlaceFromForm() {
+  return {
+    name: document.getElementById("placeName")?.value || "",
+    placeName: document.getElementById("placeName")?.value || "",
+    community: document.getElementById("community")?.value || "",
+    district: document.getElementById("district")?.value || "",
+    label: document.getElementById("placeLabel")?.value || ""
+  };
+}
+
+function setPlaceUI(place) {
+  const safePlace = place || {};
+  const name = safePlace.placeName || safePlace.name || "";
+  const community = safePlace.community || "";
+  const district = safePlace.district || "";
+  const label = safePlace.label || getPlaceLabel({ name, community, district });
+
+  const placeLabel = document.getElementById("placeLabel");
+  const placeName = document.getElementById("placeName");
+  const communityInput = document.getElementById("community");
+  const districtInput = document.getElementById("district");
+
+  if (placeLabel) placeLabel.value = label || "";
+  if (placeName) placeName.value = name || "";
+  if (communityInput) communityInput.value = community || "";
+  if (districtInput) districtInput.value = district || "";
+}
+
+function clearPlaceUI() {
+  setPlaceUI(null);
+}
+
+function average(values) {
+  const nums = values.map(getNumberFromText).filter(value => value > 0);
+  if (!nums.length) return null;
+  return nums.reduce((sum, value) => sum + value, 0) / nums.length;
+}
+
+function rangeText(values) {
+  const nums = values.map(getNumberFromText).filter(value => value > 0);
+  if (!nums.length) return "-";
+
+  const min = Math.min(...nums);
+  const max = Math.max(...nums);
+
+  return min === max
+    ? `${min.toFixed(1)} м`
+    : `${min.toFixed(1)}-${max.toFixed(1)} м`;
+}
+
+function mostCommon(values) {
+  const counts = {};
+  values
+    .map(value => String(value || "").trim())
+    .filter(Boolean)
+    .forEach(value => {
+      counts[value] = (counts[value] || 0) + 1;
+    });
+
+  return Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || "-";
+}
+
+function getPlaceStats(place) {
+  const key = getPlaceKey(place);
+  if (!key || key === "|") return null;
+
+  const items = boreholes.filter(item => getPlaceKey(item) === key);
+  if (!items.length) return { count: 0 };
+
+  return {
+    count: items.length,
+    depthRange: rangeText(items.map(item => item.depth)),
+    waterRange: rangeText(items.map(item => item.water)),
+    soil: mostCommon(items.map(item => item.soil))
+  };
+}
+
+function renderPlaceStats(place) {
+  const stats = getPlaceStats(place);
+  const label = place?.label || getPlaceLabel({
+    name: place?.placeName || place?.name || "",
+    community: place?.community || "",
+    district: place?.district || ""
+  });
+
+  const placeEl = document.querySelector(".stats-place");
+  const countEl = document.getElementById("statsCount");
+  const depthEl = document.getElementById("statsDepth");
+  const waterEl = document.getElementById("statsWater");
+  const soilEl = document.getElementById("statsSoil");
+
+  if (placeEl) placeEl.textContent = label || "Вибери свердловину або населений пункт";
+  if (countEl) countEl.textContent = stats ? String(stats.count) : "0";
+  if (depthEl) depthEl.textContent = stats?.avgDepth ? `${stats.avgDepth.toFixed(1)} м` : "-";
+  if (waterEl) waterEl.textContent = stats?.avgWater ? `${stats.avgWater.toFixed(1)} м` : "-";
+  if (soilEl) soilEl.textContent = stats?.soil || "-";
+}
+
+function renderPlaceStats(place) {
+  const stats = getPlaceStats(place);
+  const label = place?.label || getPlaceLabel({
+    name: place?.placeName || place?.name || "",
+    community: place?.community || "",
+    district: place?.district || ""
+  });
+
+  const placeEl = document.querySelector(".stats-place");
+  const countEl = document.getElementById("statsCount");
+  const depthEl = document.getElementById("statsDepth");
+  const waterEl = document.getElementById("statsWater");
+  const soilEl = document.getElementById("statsSoil");
+
+  if (depthEl?.previousElementSibling) depthEl.previousElementSibling.textContent = "Глибина від-до";
+  if (waterEl?.previousElementSibling) waterEl.previousElementSibling.textContent = "До першої води";
+
+  if (placeEl) placeEl.textContent = label || "Вибери свердловину або населений пункт";
+  if (countEl) countEl.textContent = stats ? String(stats.count) : "0";
+  if (depthEl) depthEl.textContent = stats?.depthRange || "-";
+  if (waterEl) waterEl.textContent = stats?.waterRange || "-";
+  if (soilEl) soilEl.textContent = stats?.soil || "-";
 }
 
 // показати старі точки
@@ -216,8 +404,9 @@ map.on('click', async function(e) {
 
   window.tempMarker = L.marker(e.latlng)
     .addTo(map)
-    .bindPopup("Отримую висоту...")
-    .openPopup();
+    .bindPopup("Отримую висоту...");
+  bindTempMarkerClose(window.tempMarker);
+  window.tempMarker.openPopup();
 
   openPanel();
 
@@ -238,6 +427,21 @@ map.on('click', async function(e) {
   }
 
   setDistanceUI(dist);
+
+  const clickedLat = e.latlng.lat;
+  const clickedLng = e.latlng.lng;
+  getPlaceByLatLng(clickedLat, clickedLng)
+    .then(place => {
+      if (
+        currentLatLng &&
+        Math.abs(currentLatLng.lat - clickedLat) < 0.000001 &&
+        Math.abs(currentLatLng.lng - clickedLng) < 0.000001
+      ) {
+        setPlaceUI(place);
+        renderPlaceStats(place);
+      }
+    })
+    .catch(error => console.log("Place detect error:", error));
 });
 
 async function saveBorehole() {
@@ -263,6 +467,16 @@ async function saveBorehole() {
 
   setDistanceUI(dist);
 
+  let place = getPlaceFromForm();
+  if (!place.placeName) {
+    try {
+      place = await getPlaceByLatLng(currentLatLng.lat, currentLatLng.lng) || place;
+      setPlaceUI(place);
+    } catch (e) {
+      console.log("Place save detect error:", e);
+    }
+  }
+
   const data = {
     num: document.getElementById("num").value,
     depth: document.getElementById("depth").value,
@@ -271,6 +485,10 @@ async function saveBorehole() {
     note: document.getElementById("note").value,
     elevation: String(getFieldNumber("elevation")),
     distance: dist,
+    placeName: place.placeName || place.name || "",
+    community: place.community || "",
+    district: place.district || "",
+    placeLabel: place.label || getPlaceLabel(place),
     lat: currentLatLng.lat,
     lng: currentLatLng.lng,
     createdAt: Date.now()
@@ -290,6 +508,7 @@ async function saveBorehole() {
 
     upsertBoreholeLocal(data);
     addMarker(data);
+    renderPlaceStats(data);
 
     alert(isFirebaseReady()
       ? "Точку збережено у Firebase"
@@ -301,6 +520,7 @@ async function saveBorehole() {
     data.id = createLocalId();
     upsertBoreholeLocal(data);
     addMarker(data);
+    renderPlaceStats(data);
 
     alert("Firebase не відповів, тому точку збережено локально");
   }
@@ -338,8 +558,7 @@ function addMarker(data) {
     selectedMarker = marker;
     selectedId = data.id;
 
-    // 🧾 відкрити панель редагування
-    openPanel();
+    // Панель не відкриваємо автоматично: дані готові для редагування після ручного відкриття.
 
     // 🧠 заповнити форму
     document.getElementById("num").value = data.num || "";
@@ -349,10 +568,38 @@ function addMarker(data) {
     document.getElementById("note").value = data.note || "";
     setElevationUI(data.elevation || "");
     setDistanceUI(data.distance || "");
+
+    const markerPlace = {
+      name: data.placeName || "",
+      placeName: data.placeName || "",
+      community: data.community || "",
+      district: data.district || "",
+      label: data.placeLabel || ""
+    };
+    setPlaceUI(markerPlace);
+    renderPlaceStats(markerPlace);
+
+    if (!data.placeName) {
+      getPlaceByLatLng(data.lat, data.lng)
+        .then(place => {
+          if (!place) return;
+          Object.assign(data, {
+            placeName: place.placeName || place.name || "",
+            community: place.community || "",
+            district: place.district || "",
+            placeLabel: place.label || getPlaceLabel(place)
+          });
+          upsertBoreholeLocal(data);
+          setPlaceUI(place);
+          renderPlaceStats(place);
+        })
+        .catch(error => console.log("Marker place detect error:", error));
+    }
   });
 
   marker.bindPopup(`
     <b>№${data.num}</b><br>
+    ${data.placeLabel || data.placeName ? `${data.placeLabel || data.placeName}<br>` : ""}
     Ґрунт: ${data.soil}<br>
     Глибина: ${data.depth} м<br>
     Рівень першої води: ${data.water} м<br>
@@ -365,16 +612,13 @@ function addMarker(data) {
 async function deleteSelected() {
   // 🟡 видалення тимчасової точки
   if (window.tempMarker) {
-    map.removeLayer(window.tempMarker);
-    window.tempMarker = null;
-    currentLatLng = null;
-    clearForm();
-    closePanel();
+    removeTempPoint();
     return;
   }
   // 🔴 видалення збереженої точки (FIREBASE)
   if (selectedMarker && selectedId) {
     try {
+      const removed = boreholes.find(b => b.id === selectedId);
       if (isFirebaseReady() && hasFirebaseId(selectedId)) {
         await firebaseDeleteDoc(
           firebaseDoc(db, "boreholes", selectedId)
@@ -388,6 +632,7 @@ async function deleteSelected() {
       saveLocalBoreholes();
       selectedMarker = null;
       selectedId = null;
+      renderPlaceStats(removed);
       alert("Свердловину видалено");
     } catch (e) {
       console.log("Delete error:", e);
@@ -406,6 +651,8 @@ function clearForm(){
   document.getElementById("note").value = "";
   document.getElementById("elevation").value = "";
   document.getElementById("distance").value = "";
+  setTransportByDistance("");
+  clearPlaceUI();
 }
 
 
@@ -460,7 +707,11 @@ async function updateBorehole() {
     soil: document.getElementById("soil").value,
     note: document.getElementById("note").value,
     elevation: String(getFieldNumber("elevation")),
-    distance: String(getFieldNumber("distance"))
+    distance: String(getFieldNumber("distance")),
+    placeName: getPlaceFromForm().placeName || "",
+    community: getPlaceFromForm().community || "",
+    district: getPlaceFromForm().district || "",
+    placeLabel: getPlaceFromForm().label || ""
   };
 
   try {
@@ -474,10 +725,12 @@ async function updateBorehole() {
     // 🔵 оновлюємо локально
     Object.assign(b, updatedData);
     saveLocalBoreholes();
+    renderPlaceStats(b);
 
     if (selectedMarker) {
       selectedMarker.setPopupContent(`
         <b>№${b.num}</b><br>
+        ${b.placeLabel || b.placeName ? `${b.placeLabel || b.placeName}<br>` : ""}
         Ґрунт: ${b.soil}<br>
         Глибина: ${b.depth} м<br>
         Рівень першої води: ${b.water} м<br>
@@ -555,6 +808,10 @@ function calculateBS() {
 
 function toggleTheme() {
   document.body.classList.toggle("dark");
+  const themeButton = document.querySelector(".theme-card");
+  if (themeButton) {
+    themeButton.setAttribute("aria-pressed", document.body.classList.contains("dark") ? "true" : "false");
+  }
 }
 
 function autoResize(el) {
@@ -760,6 +1017,8 @@ function renderPlaceSuggestions(results, message) {
     item.appendChild(text);
 
     item.addEventListener("click", () => {
+      setPlaceUI(place);
+      renderPlaceStats(place);
       goToPlace(place.lat, place.lng, place.name, detail);
     });
     box.appendChild(item);
@@ -932,6 +1191,38 @@ async function remotePlaceResults(q) {
   );
 }
 
+async function getPlaceByLatLng(lat, lng) {
+  const params = new URLSearchParams({
+    format: "jsonv2",
+    addressdetails: "1",
+    namedetails: "1",
+    "accept-language": "uk",
+    lat: String(lat),
+    lon: String(lng),
+    zoom: "14"
+  });
+
+  const res = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`);
+  if (!res.ok) {
+    throw new Error(`Reverse geocode failed: ${res.status}`);
+  }
+
+  const place = await res.json();
+  const name = getRemotePlaceName(place);
+  const community = getRemoteCommunity(place);
+  const district = getRemoteDistrict(place);
+
+  if (!name) return null;
+
+  return {
+    name,
+    placeName: name,
+    community,
+    district,
+    label: getPlaceLabel({ name, community, district })
+  };
+}
+
 function searchCityPRO(q) {
   const query = String(q || "").trim();
   clearTimeout(placeSearchTimer);
@@ -1039,9 +1330,9 @@ function setActiveLayer(el) {
 }
 
 function calculateCost() {
-  const depth = Number(document.getElementById("estDepth").value || 0);
-  const transport = Number(document.getElementById("transportCost").value || 0);
-  const filter = Number(document.getElementById("filterCost").value || 0);
+  const depth = getNumberFromText(document.getElementById("estDepth").value);
+  const transport = getNumberFromText(document.getElementById("transportCost").value);
+  const filter = getNumberFromText(document.getElementById("filterCost").value);
 
   const pipe = document.querySelector('input[name="pipeType"]:checked');
   const pipePrice = pipe ? Number(pipe.value) : 0;
@@ -1087,6 +1378,7 @@ window.addEventListener("load", function () {
 
   // калькулятор
   bindCostInputs();
+  setDefaultCostValues();
   calculateCost();
 
   // textarea note
