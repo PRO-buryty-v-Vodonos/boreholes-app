@@ -201,6 +201,12 @@ function formatWeatherDate(date, index) {
   });
 }
 
+function shortWeatherDate(date, index) {
+  if (index === 0) return "Сьог";
+  if (index === 1) return "Зав";
+  return formatWeatherDate(date, index);
+}
+
 function setWeatherLoading(label) {
   const place = document.getElementById("weatherPlace");
   const desc = document.getElementById("weatherDesc");
@@ -226,21 +232,34 @@ function setWeatherEmpty(message) {
 
 function populateWeatherDates(data) {
   const select = document.getElementById("weatherDate");
+  const pills = document.getElementById("weatherDatePills");
   const dates = data?.daily?.time || [];
-  if (!select || !dates.length) return;
+  if (!dates.length) return;
 
-  select.innerHTML = "";
+  if (select) select.innerHTML = "";
+  if (pills) pills.innerHTML = "";
   dates.forEach((date, index) => {
-    const option = document.createElement("option");
-    option.value = String(index);
-    option.textContent = formatWeatherDate(date, index);
-    select.appendChild(option);
+    if (select) {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = formatWeatherDate(date, index);
+      select.appendChild(option);
+    }
+
+    if (pills) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "weather-date-pill";
+      button.textContent = shortWeatherDate(date, index);
+      button.addEventListener("click", () => changeWeatherDate(index));
+      pills.appendChild(button);
+    }
   });
 
   if (lastWeatherDayIndex >= dates.length) {
     lastWeatherDayIndex = 0;
   }
-  select.value = String(lastWeatherDayIndex);
+  if (select) select.value = String(lastWeatherDayIndex);
 }
 
 function renderWeatherDay() {
@@ -258,6 +277,12 @@ function renderWeatherDay() {
   const rainEl = document.getElementById("weatherRain");
 
   const code = index === 0 ? current.weather_code : daily.weather_code?.[index];
+  const select = document.getElementById("weatherDate");
+
+  if (select) select.value = String(index);
+  document.querySelectorAll(".weather-date-pill").forEach((button, buttonIndex) => {
+    button.classList.toggle("active", buttonIndex === index);
+  });
 
   if (index === 0) {
     if (tempEl) {
