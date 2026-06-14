@@ -113,6 +113,11 @@ let activeSearchMarker = null;
 let placeSearchTimer = null;
 let placeSearchRequestId = 0;
 let placesReady = false;
+let lastWeatherPoint = {
+  lat: POLTAVA_CENTER.lat,
+  lng: POLTAVA_CENTER.lng,
+  label: "Полтава"
+};
 const LOCAL_BOREHOLES_KEY = "boreholes-app:boreholes";
 
 function removeTempPoint() {
@@ -145,6 +150,88 @@ function bindTempMarkerClose(marker) {
       }
     }, { once: true });
   });
+}
+
+function weatherText(code) {
+  const codes = {
+    0: "Ясно",
+    1: "Переважно ясно",
+    2: "Мінлива хмарність",
+    3: "Хмарно",
+    45: "Туман",
+    48: "Паморозь",
+    51: "Мала мряка",
+    53: "Мряка",
+    55: "Сильна мряка",
+    61: "Невеликий дощ",
+    63: "Дощ",
+    65: "Сильний дощ",
+    71: "Невеликий сніг",
+    73: "Сніг",
+    75: "Сильний сніг",
+    80: "Короткий дощ",
+    81: "Зливи",
+    82: "Сильні зливи",
+    95: "Гроза"
+  };
+  return codes[Number(code)] || "Поточна погода";
+}
+
+function setWeatherLoading(label) {
+  const place = document.getElementById("weatherPlace");
+  const desc = document.getElementById("weatherDesc");
+  if (place) place.textContent = label || "Полтава";
+  if (desc) desc.textContent = "Оновлюю...";
+}
+
+function setWeatherEmpty(message) {
+  const temp = document.getElementById("weatherTemp");
+  const desc = document.getElementById("weatherDesc");
+  const wind = document.getElementById("weatherWind");
+  const humidity = document.getElementById("weatherHumidity");
+  const rain = document.getElementById("weatherRain");
+
+  if (temp) temp.textContent = "--°";
+  if (desc) desc.textContent = message || "Погода недоступна";
+  if (wind) wind.textContent = "-";
+  if (humidity) humidity.textContent = "-";
+  if (rain) rain.textContent = "-";
+}
+
+async function loadWeather(lat = POLTAVA_CENTER.lat, lng = POLTAVA_CENTER.lng, label = "Полтава") {
+  lastWeatherPoint = { lat, lng, label };
+  setWeatherLoading(label);
+
+  try {
+    const url = new URL("https://api.open-meteo.com/v1/forecast");
+    url.searchParams.set("latitude", lat);
+    url.searchParams.set("longitude", lng);
+    url.searchParams.set("current", "temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,weather_code");
+    url.searchParams.set("timezone", "auto");
+
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error(`Weather failed: ${res.status}`);
+
+    const data = await res.json();
+    const current = data.current || {};
+
+    document.getElementById("weatherTemp").textContent =
+      Number.isFinite(current.temperature_2m) ? `${Math.round(current.temperature_2m)}°` : "--°";
+    document.getElementById("weatherDesc").textContent = weatherText(current.weather_code);
+    document.getElementById("weatherWind").textContent =
+      Number.isFinite(current.wind_speed_10m) ? `${Math.round(current.wind_speed_10m)} км/год` : "-";
+    document.getElementById("weatherHumidity").textContent =
+      Number.isFinite(current.relative_humidity_2m) ? `${Math.round(current.relative_humidity_2m)}%` : "-";
+    document.getElementById("weatherRain").textContent =
+      Number.isFinite(current.precipitation) ? `${current.precipitation} мм` : "-";
+  } catch (e) {
+    console.log("Weather error:", e);
+    setWeatherEmpty("Погода недоступна");
+  }
+}
+
+function refreshWeather() {
+  loadWeather(lastWeatherPoint.lat, lastWeatherPoint.lng, lastWeatherPoint.label);
 }
 
 function isFirebaseReady() {
@@ -439,6 +526,7 @@ map.on('click', async function(e) {
       ) {
         setPlaceUI(place);
         renderPlaceStats(place);
+        loadWeather(clickedLat, clickedLng, place.label || place.placeName || "Обрана точка");
       }
     })
     .catch(error => console.log("Place detect error:", error));
@@ -578,6 +666,7 @@ function addMarker(data) {
     };
     setPlaceUI(markerPlace);
     renderPlaceStats(markerPlace);
+    loadWeather(data.lat, data.lng, data.placeLabel || data.placeName || `Свердловина №${data.num || ""}`);
 
     if (!data.placeName) {
       getPlaceByLatLng(data.lat, data.lng)
@@ -1375,6 +1464,7 @@ window.addEventListener("load", function () {
   // карта
   initLayerControl();
   loadPoltavaBoundary();
+  loadWeather();
 
   // калькулятор
   bindCostInputs();
@@ -1465,6 +1555,7 @@ window.toggleSidebar = toggleSidebar;
 window.toggleFormPanel = toggleFormPanel;
 window.startAddPoint = startAddPoint;
 window.clearSearch = clearSearch;
+window.refreshWeather = refreshWeather;
 
 function syncRightArrow(){
   const panel = document.getElementById("formPanel");
@@ -1588,6 +1679,8 @@ function goToPlace(lat, lng, name, detail = "") {
   document.getElementById("suggestions").classList.remove("has-results");
 
   map.setView([lat, lng], 13);
+  renderPlaceStats({ name, placeName: name, label });
+  loadWeather(lat, lng, name);
 
   if (activeSearchMarker) {
     map.removeLayer(activeSearchMarker);

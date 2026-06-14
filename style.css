@@ -573,6 +573,98 @@ body.dark .leaflet-popup-tip {
   padding: 6px 0;
 }
 
+.weather-title {
+  margin-top: 8px !important;
+}
+
+.weather-box {
+  margin: 6px 0 8px 0;
+  padding: 8px;
+  border: 1px solid #d6e2ff;
+  border-radius: 8px;
+  background: #f4f7ff;
+}
+
+.weather-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.weather-head span {
+  display: block;
+  color: #2d89ef;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.weather-head b {
+  display: block;
+  color: #1d2939;
+  font-size: 23px;
+  line-height: 1.05;
+}
+
+#weatherRefresh {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 28px !important;
+  height: 28px;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  border: 1px solid #d6e2ff !important;
+  color: #2d89ef !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+}
+
+#weatherRefresh:hover {
+  background: #eef5ff !important;
+}
+
+.weather-desc {
+  margin-bottom: 6px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.weather-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 5px;
+}
+
+.weather-grid div {
+  min-width: 0;
+  padding: 5px;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.weather-grid span {
+  display: block;
+  margin-bottom: 3px;
+  color: #667085;
+  font-size: 10.5px;
+}
+
+.weather-grid b {
+  display: block;
+  color: #1d2939;
+  font-size: 11.5px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .stats-box {
   margin: 6px 0 8px 0;
   padding: 8px;
@@ -809,6 +901,42 @@ body.dark .stats-grid span {
 }
 
 body.dark .stats-grid b {
+  color: #fff;
+}
+
+body.dark .weather-box {
+  background: #30343a;
+  border-color: #444;
+}
+
+body.dark .weather-head span {
+  color: #6aa9ff;
+}
+
+body.dark .weather-head b {
+  color: #fff;
+}
+
+body.dark #weatherRefresh {
+  background: #262a30 !important;
+  border-color: #444 !important;
+  color: #6aa9ff !important;
+}
+
+body.dark #weatherRefresh:hover {
+  background: #343a42 !important;
+}
+
+body.dark .weather-desc,
+body.dark .weather-grid span {
+  color: #a4aab5;
+}
+
+body.dark .weather-grid div {
+  background: #262a30;
+}
+
+body.dark .weather-grid b {
   color: #fff;
 }
 

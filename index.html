@@ -9,7 +9,7 @@
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
-  <link rel="stylesheet" href="style.css?v=20260614-11" />
+  <link rel="stylesheet" href="style.css?v=20260614-12" />
 </head>
 <body>
    <div id="searchBox">
@@ -150,6 +150,33 @@
 
   <div id="layerControl"></div>
 
+  <div class="section-title weather-title">
+    <span class="icon">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M7 18a5 5 0 1 1 1.8-9.66A6 6 0 0 1 20 12.5"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M15 17h.01M18 17h.01M12 20h.01M16 20h.01"
+          stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+    </span>
+    Погода
+  </div>
+  <div id="weatherBox" class="weather-box">
+    <div class="weather-head">
+      <div>
+        <span id="weatherPlace">Полтава</span>
+        <b id="weatherTemp">--°</b>
+      </div>
+      <button id="weatherRefresh" type="button" onclick="refreshWeather()" title="Оновити погоду">↻</button>
+    </div>
+    <div id="weatherDesc" class="weather-desc">Завантажую...</div>
+    <div class="weather-grid">
+      <div><span>Вітер</span><b id="weatherWind">-</b></div>
+      <div><span>Вологість</span><b id="weatherHumidity">-</b></div>
+      <div><span>Опади</span><b id="weatherRain">-</b></div>
+    </div>
+  </div>
+
 </div>
 
 <!-- =========================
@@ -231,7 +258,7 @@
      📦 SCRIPTS
 ========================= -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=20260614-9"></script>
+<script src="app.js?v=20260614-12"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
