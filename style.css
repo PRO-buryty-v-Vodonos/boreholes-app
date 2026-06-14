@@ -1073,13 +1073,44 @@ body.dark #totalCost {
     padding-left: 34px;
   }
 
+  .radio-group {
+    flex-direction: row;
+    gap: 4px;
+    margin: 2px 0 4px 0;
+  }
+
+  .radio-item {
+    flex: 1 1 0;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+    padding: 4px 3px;
+    font-size: 11.5px;
+    white-space: nowrap;
+  }
+
+  .radio-item .dot {
+    width: 11px;
+    height: 11px;
+    flex: 0 0 11px;
+  }
+
+  .radio-item input:checked + .dot::after {
+    width: 4px;
+    height: 4px;
+  }
+
+  .pipe-price {
+    display: none;
+  }
+
   .weather-title {
     margin-top: 5px !important;
   }
 
   .weather-box {
-    padding: 6px;
-    margin: 4px 0 6px 0;
+    padding: 5px;
+    margin: 3px 0 5px 0;
   }
 
   .weather-head {
@@ -1092,7 +1123,7 @@ body.dark #totalCost {
   }
 
   .weather-head b {
-    font-size: 20px;
+    font-size: 17px;
   }
 
   #weatherRefresh {
@@ -1103,8 +1134,8 @@ body.dark #totalCost {
   }
 
   .weather-desc {
-    margin-bottom: 5px;
-    font-size: 11.2px;
+    margin-bottom: 4px;
+    font-size: 10.8px;
   }
 
   .weather-grid {
@@ -1126,8 +1157,8 @@ body.dark #totalCost {
   }
 
   .weather-grid b {
-    max-width: 94px;
-    font-size: 11px;
+    max-width: 88px;
+    font-size: 10.5px;
     text-align: right;
   }
 }
