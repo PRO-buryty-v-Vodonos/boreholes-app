@@ -120,6 +120,9 @@ let lastWeatherPoint = {
 };
 let lastWeatherData = null;
 let lastWeatherDayIndex = 0;
+let isAdmin = false;
+let accessClosed = false;
+let userLocationMarker = null;
 const LOCAL_BOREHOLES_KEY = "boreholes-app:boreholes";
 
 function removeTempPoint() {
@@ -441,6 +444,77 @@ function refreshWeather() {
   loadWeather(lastWeatherPoint.lat, lastWeatherPoint.lng, lastWeatherPoint.label, true);
 }
 
+function locateUser() {
+  if (!navigator.geolocation) {
+    alert("Геолокація не підтримується цим браузером");
+    return;
+  }
+
+  logAppEvent("locate_user");
+
+  navigator.geolocation.getCurrentPosition(
+    position => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      if (userLocationMarker) {
+        map.removeLayer(userLocationMarker);
+      }
+
+      userLocationMarker = L.circleMarker([lat, lng], {
+        radius: 8,
+        color: "#fff",
+        weight: 3,
+        fillColor: "#2d89ef",
+        fillOpacity: 1
+      }).addTo(map).bindPopup("Моє місце");
+
+      map.setView([lat, lng], 15);
+      userLocationMarker.openPopup();
+    },
+    error => {
+      console.log("Geolocation error:", error);
+      alert("Не вдалося отримати місцезнаходження. Перевір дозвіл у браузері");
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 30000
+    }
+  );
+}
+
+function registerPWA() {
+  if (!("serviceWorker" in navigator)) return;
+
+  navigator.serviceWorker.register("./service-worker.js")
+    .then(registration => {
+      registration.update();
+
+      if (registration.waiting) {
+        registration.waiting.postMessage({ type: "SKIP_WAITING" });
+      }
+    })
+    .catch(error => console.log("Service worker error:", error));
+
+  let refreshedByServiceWorker = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshedByServiceWorker) return;
+    refreshedByServiceWorker = true;
+    window.location.reload();
+  });
+}
+
+function logAppEvent(name, params = {}) {
+  if (!window.firebaseAnalytics || !window.firebaseLogEvent) return;
+
+  try {
+    window.firebaseLogEvent(window.firebaseAnalytics, name, params);
+  } catch (error) {
+    console.log("Analytics event error:", error);
+  }
+}
+
 function setPanelSectionCollapsed(id, trigger, collapsed) {
   const panel = document.getElementById(id);
   if (!panel) return;
@@ -485,6 +559,91 @@ function isFirebaseReady() {
     window.firebaseDeleteDoc &&
     window.firebaseDoc
   );
+}
+
+function canEdit() {
+  return isAdmin;
+}
+
+function requireAdmin() {
+  if (canEdit()) return true;
+  alert("Редагування доступне тільки адміну");
+  return false;
+}
+
+function setAdminUI(user) {
+  isAdmin = Boolean(user);
+
+  const status = document.getElementById("authStatus");
+  if (status) {
+    status.textContent = isAdmin ? `Адмін: ${user.email}` : "Гостьовий перегляд";
+  }
+
+  document.body.classList.toggle("admin-mode", isAdmin);
+  document.body.classList.toggle("guest-mode", !isAdmin);
+  updateAccessOverlay();
+}
+
+function updateAccessOverlay() {
+  const overlay = document.getElementById("accessOverlay");
+  if (!overlay) return;
+  overlay.classList.toggle("hidden", !accessClosed || isAdmin);
+}
+
+async function adminLogin() {
+  if (!window.firebaseAuth || !window.firebaseSignInWithEmailAndPassword) {
+    alert("Firebase Auth ще не підключений");
+    return;
+  }
+
+  const email = document.getElementById("adminEmail")?.value.trim();
+  const password = document.getElementById("adminPassword")?.value;
+
+  if (!email || !password) {
+    alert("Введи email і пароль адміна");
+    return;
+  }
+
+  try {
+    await firebaseSignInWithEmailAndPassword(firebaseAuth, email, password);
+    document.getElementById("adminPassword").value = "";
+  } catch (e) {
+    console.log("Admin login error:", e);
+    alert("Не вийшло увійти. Перевір email і пароль");
+  }
+}
+
+async function adminLogout() {
+  if (!window.firebaseAuth || !window.firebaseSignOut) return;
+  await firebaseSignOut(firebaseAuth);
+}
+
+function initAdminAuth() {
+  if (!window.firebaseAuth || !window.firebaseOnAuthStateChanged) {
+    setAdminUI(null);
+    return;
+  }
+
+  firebaseOnAuthStateChanged(firebaseAuth, user => {
+    setAdminUI(user);
+    checkAppAccess();
+  });
+}
+
+async function checkAppAccess() {
+  if (!isFirebaseReady() || !window.firebaseGetDoc) {
+    updateAccessOverlay();
+    return;
+  }
+
+  try {
+    const snap = await firebaseGetDoc(firebaseDoc(db, "settings", "app"));
+    accessClosed = snap.exists() && snap.data().appOpen === false;
+  } catch (e) {
+    console.log("Access settings error:", e);
+  }
+
+  updateAccessOverlay();
 }
 
 function createLocalId() {
@@ -805,6 +964,8 @@ map.on('click', async function(e) {
 });
 
 async function saveBorehole() {
+  if (!requireAdmin()) return;
+
   if (!currentLatLng) {
     alert("Спочатку вибери місце на карті");
     return;
@@ -976,6 +1137,9 @@ async function deleteSelected() {
     removeTempPoint();
     return;
   }
+
+  if (!requireAdmin()) return;
+
   // 🔴 видалення збереженої точки (FIREBASE)
   if (selectedMarker && selectedId) {
     try {
@@ -1054,6 +1218,8 @@ function editBorehole(id){
 }
 
 async function updateBorehole() {
+  if (!requireAdmin()) return;
+
   if (!selectedId) {
     alert("Вибери свердловину");
     return;
@@ -1830,12 +1996,21 @@ function downloadEstimatePdf() {
   };
 
   const cleanNum = String(num).replace(/[^\d\wа-яА-ЯіїєґІЇЄҐ-]+/g, "_");
+  logAppEvent("estimate_pdf_download", {
+    depth,
+    total: Math.round(total),
+    pipe_price: pipePrice
+  });
   pdfMake.createPdf(docDefinition).download(`koshtorys_sverdlovyna_${cleanNum || "nova"}.pdf`);
 }
 
 window.addEventListener("load", function () {
 
   // карта
+  registerPWA();
+  logAppEvent("app_open");
+  initAdminAuth();
+  checkAppAccess();
   initLayerControl();
   loadPoltavaBoundary();
   loadWeather();
@@ -1934,6 +2109,9 @@ window.refreshWeather = refreshWeather;
 window.changeWeatherDate = changeWeatherDate;
 window.togglePanelSection = togglePanelSection;
 window.downloadEstimatePdf = downloadEstimatePdf;
+window.adminLogin = adminLogin;
+window.adminLogout = adminLogout;
+window.locateUser = locateUser;
 
 function syncRightArrow(){
   const panel = document.getElementById("formPanel");
@@ -2057,6 +2235,10 @@ function goToPlace(lat, lng, name, detail = "") {
   document.getElementById("suggestions").classList.remove("has-results");
 
   map.setView([lat, lng], 13);
+  logAppEvent("settlement_search_select", {
+    settlement: name,
+    community: String(detail || "").split(",")[0].trim()
+  });
   renderPlaceStats({ name, placeName: name, community: String(detail || "").split(",")[0].trim() });
   loadWeather(lat, lng, name);
 

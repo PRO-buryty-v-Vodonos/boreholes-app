@@ -3,13 +3,16 @@
 <head>
   <meta charset="UTF-8" />
    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#2d89ef" />
   <title>My App</title>
   <title>Свердловини GIS</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
-  <link rel="stylesheet" href="style.css?v=20260615-7" />
+  <link rel="stylesheet" href="style.css?v=20260615-14" />
 </head>
 <body>
    <div id="searchBox">
@@ -63,6 +66,17 @@
     <span class="theme-card-text">Темна тема</span>
     <span class="theme-switch" aria-hidden="true"></span>
   </button>
+
+  <div class="admin-box">
+    <span>Адмін</span>
+    <div id="authStatus">Гостьовий перегляд</div>
+    <input id="adminEmail" type="email" placeholder="Email адміна" autocomplete="username" />
+    <input id="adminPassword" type="password" placeholder="Пароль" autocomplete="current-password" />
+    <div class="admin-actions">
+      <button type="button" onclick="adminLogin()">Увійти</button>
+      <button type="button" onclick="adminLogout()">Вийти</button>
+    </div>
+  </div>
   <hr>
 
   <div class="section-title">Статистика місцевості</div>
@@ -205,6 +219,13 @@
 ========================= -->
 <div id="map"></div>
 <button id="addBtn" onclick="startAddPoint()">＋</button>
+<button id="locateBtn" onclick="locateUser()" title="Моє місце">⌖</button>
+<div id="accessOverlay" class="access-overlay hidden">
+  <div>
+    <b>Доступ тимчасово закрито</b>
+    <p>Карта недоступна для загального перегляду.</p>
+  </div>
+</div>
 <!-- =========================
      📋 ПРАВА ПАНЕЛЬ (ФОРМА)
 ========================= -->
@@ -281,7 +302,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-<script src="app.js?v=20260615-7"></script>
+<script src="app.js?v=20260615-11"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -293,8 +314,20 @@
     getDocs,
     updateDoc,
     deleteDoc,
-    doc
+    doc,
+    getDoc,
+    enableIndexedDbPersistence
   } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import {
+    getAuth,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import {
+    getAnalytics,
+    logEvent
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCxzts21niU3X3lusAq7SNmYwe5MrrtVK8",
@@ -315,8 +348,18 @@
   if (firebaseConfigured) {
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const auth = getAuth(app);
+    const analytics = getAnalytics(app);
+
+    enableIndexedDbPersistence(db).catch(error => {
+      console.warn("Firestore offline cache недоступний:", error);
+    });
 
     window.db = db;
+    window.firebaseAuth = auth;
+    window.firebaseSignInWithEmailAndPassword = signInWithEmailAndPassword;
+    window.firebaseSignOut = signOut;
+    window.firebaseOnAuthStateChanged = onAuthStateChanged;
     window.firebaseAddDoc = addDoc;
     window.firebaseCollection = collection;
     window.firebaseGetDocs = getDocs;
@@ -324,6 +367,9 @@
     window.firebaseUpdateDoc = updateDoc;
     window.firebaseDeleteDoc = deleteDoc;
     window.firebaseDoc = doc;
+    window.firebaseGetDoc = getDoc;
+    window.firebaseAnalytics = analytics;
+    window.firebaseLogEvent = logEvent;
     window.firebaseReady = true;
   } else {
     window.firebaseReady = false;

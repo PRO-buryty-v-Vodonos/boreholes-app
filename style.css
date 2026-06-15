@@ -300,6 +300,63 @@ body.dark .leaflet-popup-tip {
   color: #155db7;
 }
 
+#locateBtn {
+  position: absolute;
+  bottom: 78px;
+  right: 20px;
+  z-index: 1000;
+  width: 46px;
+  height: 46px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: #2d89ef;
+  font-size: 23px;
+  font-weight: 800;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+  cursor: pointer;
+}
+
+.guest-mode #formPanel .btn-stack {
+  display: none;
+}
+
+.access-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.access-overlay.hidden {
+  display: none;
+}
+
+.access-overlay div {
+  max-width: 320px;
+  padding: 18px;
+  border: 1px solid #d6e2ff;
+  border-radius: 10px;
+  background: #fff;
+  text-align: center;
+  box-shadow: 0 12px 30px rgba(18, 47, 84, 0.18);
+}
+
+.access-overlay b {
+  display: block;
+  margin-bottom: 6px;
+  color: #1d2939;
+}
+
+.access-overlay p {
+  margin: 0;
+  color: #667085;
+}
+
 /* =========================
    📌 ПІДКАЗКИ ПОШУКУ
 ========================= */
@@ -567,6 +624,67 @@ body.dark .leaflet-popup-tip {
   background: #fff;
   box-shadow: 0 1px 3px rgba(16, 24, 40, 0.22);
   transition: transform 0.18s ease;
+}
+
+.admin-box {
+  margin: 6px 0 8px 0;
+  padding: 8px;
+  border: 1px solid #d6e2ff;
+  border-radius: 8px;
+  background: #f4f7ff;
+  text-align: center;
+}
+
+.admin-box span {
+  display: block;
+  margin-bottom: 3px;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+#authStatus {
+  margin-bottom: 6px;
+  color: #2d89ef;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-box input {
+  margin: 3px 0 !important;
+  text-align: left;
+}
+
+.admin-actions {
+  width: 170px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 8px;
+  margin: 6px auto 0 !important;
+}
+
+.admin-actions button {
+  width: 78px !important;
+  min-width: 78px;
+  margin: 0 !important;
+  padding: 6px 5px;
+  border: 0;
+  border-radius: 7px;
+  background: #2d89ef;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  cursor: pointer;
+}
+
+.admin-actions button:last-child {
+  background: #eef5ff;
+  color: #155db7;
 }
 
 #layerControl {
@@ -1257,6 +1375,24 @@ body.dark .theme-switch {
 
 body.dark .theme-switch::after {
   transform: translateX(16px);
+}
+
+body.dark .admin-box {
+  background: #30343a;
+  border-color: #444;
+}
+
+body.dark .admin-box span {
+  color: #a4aab5;
+}
+
+body.dark #authStatus {
+  color: #6aa9ff;
+}
+
+body.dark .admin-actions button:last-child {
+  background: #262a30;
+  color: #6aa9ff;
 }
 
 body.dark #sidebar input,
