@@ -868,6 +868,23 @@ body.dark .leaflet-popup-tip {
   font-weight: 700;
 }
 
+.estimate-pdf-btn {
+  width: 100%;
+  margin-top: 5px;
+  padding: 7px 8px;
+  border: 1px solid #bcd5ff;
+  border-radius: 7px;
+  background: #eef5ff;
+  color: #155db7;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.estimate-pdf-btn:hover {
+  background: #dfeeff;
+}
+
 .tool-header {
   width: 100%;
   display: flex;
@@ -1160,6 +1177,16 @@ body.dark #totalCost {
   background: #203a5f;
   border-color: #3f7ed0;
   color: #fff;
+}
+
+body.dark .estimate-pdf-btn {
+  background: #203a5f;
+  border-color: #3f7ed0;
+  color: #fff;
+}
+
+body.dark .estimate-pdf-btn:hover {
+  background: #24476f;
 }
 
 .drawer-handle {

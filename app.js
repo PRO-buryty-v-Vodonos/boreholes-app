@@ -553,6 +553,14 @@ function setDefaultCostValues() {
   }
 }
 
+function resetEstimateDepth() {
+  const depth = document.getElementById("estDepth");
+  if (depth) {
+    depth.value = "";
+  }
+  calculateCost();
+}
+
 function getPlaceKey(place) {
   if (!place) return "";
 
@@ -720,6 +728,7 @@ map.on('click', async function(e) {
   selectedId = null;
   selectedMarker = null;
   clearForm();
+  resetEstimateDepth();
 
   window.tempMarker = L.marker(e.latlng)
     .addTo(map)
@@ -973,6 +982,7 @@ function clearForm(){
   document.getElementById("elevation").value = "";
   document.getElementById("distance").value = "";
   setTransportByDistance("");
+  resetEstimateDepth();
   clearPlaceUI();
 }
 
@@ -1697,6 +1707,97 @@ function getPipePrice() {
   return Number(selected ? selected.value : 0);
 }
 
+function getSelectedPipeLabel() {
+  const selected = document.querySelector('input[name="pipeType"]:checked');
+  if (!selected) return "-";
+
+  const item = selected.closest(".radio-item");
+  return item ? item.textContent.replace(/\s+/g, " ").trim() : `${selected.value} грн/м`;
+}
+
+function money(value) {
+  return `${Number(value || 0).toFixed(2)} грн`;
+}
+
+function downloadEstimatePdf() {
+  if (!window.pdfMake) {
+    alert("PDF модуль ще не завантажився. Спробуй натиснути ще раз за кілька секунд.");
+    return;
+  }
+
+  calculateCost();
+
+  const depth = getNumberFromText(document.getElementById("estDepth").value);
+  const pipePrice = getPipePrice();
+  const pipeCost = depth * pipePrice;
+  const transport = getNumberFromText(document.getElementById("transportCost").value);
+  const filter = getNumberFromText(document.getElementById("filterCost").value);
+  const total = pipeCost + transport + filter;
+
+  if (!depth) {
+    alert("Введи метраж у калькуляторі перед створенням кошторису");
+    return;
+  }
+
+  const num = document.getElementById("num").value || "-";
+  const place = document.getElementById("placeLabel").value || "-";
+  const distance = document.getElementById("distance").value || "-";
+  const date = new Date().toLocaleDateString("uk-UA");
+
+  const docDefinition = {
+    pageSize: "A4",
+    pageMargins: [36, 36, 36, 36],
+    content: [
+      { text: "Кошторис буріння свердловини", style: "title" },
+      { text: `Дата: ${date}`, style: "muted" },
+      { text: "Дані точки", style: "section" },
+      {
+        table: {
+          widths: ["42%", "*"],
+          body: [
+            ["№ свердловини", num],
+            ["Місцевість", place],
+            ["Відстань до Полтави", distance]
+          ]
+        },
+        layout: "lightHorizontalLines"
+      },
+      { text: "Розрахунок", style: "section" },
+      {
+        table: {
+          widths: ["*", "auto", "auto", "auto"],
+          body: [
+            [
+              { text: "Позиція", bold: true },
+              { text: "К-сть", bold: true },
+              { text: "Ціна", bold: true },
+              { text: "Сума", bold: true }
+            ],
+            ["Обсадна труба", `${depth} м`, getSelectedPipeLabel(), money(pipeCost)],
+            ["Транспортні нарахування", "-", "-", money(transport)],
+            ["Фільтр", "-", "-", money(filter)],
+            [{ text: "Разом", bold: true }, "", "", { text: money(total), bold: true }]
+          ]
+        },
+        layout: "lightHorizontalLines"
+      },
+      { text: "Примітка: кошторис є попереднім і може уточнюватися після огляду місця робіт.", style: "note" }
+    ],
+    styles: {
+      title: { fontSize: 18, bold: true, margin: [0, 0, 0, 8] },
+      section: { fontSize: 13, bold: true, margin: [0, 14, 0, 6] },
+      muted: { color: "#667085", margin: [0, 0, 0, 6] },
+      note: { color: "#667085", fontSize: 10, margin: [0, 14, 0, 0] }
+    },
+    defaultStyle: {
+      fontSize: 11
+    }
+  };
+
+  const cleanNum = String(num).replace(/[^\d\wа-яА-ЯіїєґІЇЄҐ-]+/g, "_");
+  pdfMake.createPdf(docDefinition).download(`koshtorys_sverdlovyna_${cleanNum || "nova"}.pdf`);
+}
+
 window.addEventListener("load", function () {
 
   // карта
@@ -1797,6 +1898,7 @@ window.clearSearch = clearSearch;
 window.refreshWeather = refreshWeather;
 window.changeWeatherDate = changeWeatherDate;
 window.togglePanelSection = togglePanelSection;
+window.downloadEstimatePdf = downloadEstimatePdf;
 
 function syncRightArrow(){
   const panel = document.getElementById("formPanel");
