@@ -190,6 +190,17 @@ function weatherIcon(code) {
   return "☁";
 }
 
+function weatherSeverity(code) {
+  const value = Number(code);
+  if ([95].includes(value)) return 6;
+  if ([65, 75, 82].includes(value)) return 5;
+  if ([61, 63, 71, 73, 80, 81].includes(value)) return 4;
+  if ([51, 53, 55].includes(value)) return 3;
+  if ([3, 45, 48].includes(value)) return 2;
+  if ([2].includes(value)) return 1;
+  return 0;
+}
+
 function formatWeatherDate(date, index) {
   if (index === 0) return "Сьогодні";
   if (index === 1) return "Завтра";
@@ -262,13 +273,30 @@ function populateWeatherDates(data) {
   if (select) select.value = String(lastWeatherDayIndex);
 }
 
-function findHourlyIndexForBlock(date, startHour, endHour) {
+function getHourlyIndexesForBlock(date, startHour, endHour) {
   const times = lastWeatherData?.hourly?.time || [];
-  return times.findIndex(time => {
+  return times
+    .map((time, index) => ({ time, index }))
+    .filter(item => {
+      const time = item.time;
     if (!String(time).startsWith(date)) return false;
     const hour = Number(String(time).slice(11, 13));
     return hour >= startHour && hour < endHour;
-  });
+    })
+    .map(item => item.index);
+}
+
+function pickHourlyIndex(indexes, hourly) {
+  return indexes
+    .slice()
+    .sort((a, b) => {
+      const chanceDiff = (hourly.precipitation_probability?.[b] || 0) -
+        (hourly.precipitation_probability?.[a] || 0);
+      if (chanceDiff) return chanceDiff;
+
+      return weatherSeverity(hourly.weather_code?.[b]) -
+        weatherSeverity(hourly.weather_code?.[a]);
+    })[0];
 }
 
 function renderWeatherHours(dayIndex) {
@@ -278,6 +306,7 @@ function renderWeatherHours(dayIndex) {
   if (!box || !dailyDate || !hourly.time?.length) return;
 
   const blocks = [
+    { start: 6, end: 9 },
     { start: 9, end: 12 },
     { start: 12, end: 16 },
     { start: 16, end: 20 }
@@ -286,8 +315,9 @@ function renderWeatherHours(dayIndex) {
   box.innerHTML = "";
 
   blocks.forEach(block => {
-    const hourlyIndex = findHourlyIndexForBlock(dailyDate, block.start, block.end);
-    if (hourlyIndex < 0) return;
+    const hourlyIndexes = getHourlyIndexesForBlock(dailyDate, block.start, block.end);
+    const hourlyIndex = pickHourlyIndex(hourlyIndexes, hourly);
+    if (!Number.isFinite(hourlyIndex)) return;
 
     const code = hourly.weather_code?.[hourlyIndex];
     const temp = hourly.temperature_2m?.[hourlyIndex];
@@ -386,6 +416,7 @@ async function loadWeather(lat = POLTAVA_CENTER.lat, lng = POLTAVA_CENTER.lng, l
     url.searchParams.set("current", "temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,weather_code");
     url.searchParams.set("daily", "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max");
     url.searchParams.set("hourly", "weather_code,temperature_2m,precipitation_probability");
+    url.searchParams.set("past_hours", "24");
     url.searchParams.set("forecast_days", "7");
     url.searchParams.set("timezone", "auto");
 
@@ -683,7 +714,7 @@ function renderPlaceStats(place) {
   const soilEl = document.getElementById("statsSoil");
 
   if (depthEl?.previousElementSibling) depthEl.previousElementSibling.textContent = "Глибина від-до";
-  if (waterEl?.previousElementSibling) waterEl.previousElementSibling.textContent = "До першої води";
+  if (waterEl?.previousElementSibling) waterEl.previousElementSibling.textContent = "Рівень 1-ї води";
 
   if (placeEl) placeEl.textContent = label || "Вибери свердловину або населений пункт";
   if (countEl) countEl.textContent = stats ? String(stats.count) : "0";
@@ -707,7 +738,7 @@ function renderPlaceStats(place) {
   const soilEl = document.getElementById("statsSoil");
 
   if (depthEl?.previousElementSibling) depthEl.previousElementSibling.textContent = "Глибина від-до";
-  if (waterEl?.previousElementSibling) waterEl.previousElementSibling.textContent = "До першої води";
+  if (waterEl?.previousElementSibling) waterEl.previousElementSibling.textContent = "Рівень 1-ї води";
 
   if (placeEl) placeEl.textContent = label || "Вибери свердловину або населений пункт";
   if (countEl) countEl.textContent = stats ? String(stats.count) : "0";
