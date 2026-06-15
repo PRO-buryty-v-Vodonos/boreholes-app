@@ -192,28 +192,117 @@ body {
   font-size: 12px;
 }
 
+.borehole-marker,
+.temp-borehole-marker {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.borehole-pin {
+  position: relative;
+  display: block;
+  width: 24px;
+  height: 24px;
+  background: #2d89ef;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 4px 12px rgba(18, 47, 84, 0.32);
+}
+
+.borehole-pin::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 15px;
+  height: 5px;
+  background: rgba(18, 47, 84, 0.16);
+  border-radius: 50%;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.borehole-pin-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.borehole-pin-core::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(45, 137, 239, 0.24);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.temp-borehole-marker {
+  position: relative;
+}
+
+.temp-borehole-pulse {
+  position: absolute;
+  inset: 3px;
+  background: rgba(45, 137, 239, 0.16);
+  border-radius: 50%;
+}
+
+.temp-borehole-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  background: #2d89ef;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(18, 47, 84, 0.28);
+  transform: translate(-50%, -50%);
+}
+
+.temp-borehole-dot::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
 /* =========================
    🌙 ТЕМНА ТЕМА
 ========================= */
 body.dark {
-  background: #1e1e1e;
+  background: #2b3138;
 }
 
 body.dark #sidebar {
-  background: #2b2b2b;
-  color: #eee;
+  background: #363d46;
+  color: #e9eef5;
 }
 
 body.dark #formPanel {
-  background: #2b2b2b;
-  color: #eee;
+  background: #363d46;
+  color: #e9eef5;
 }
 
 body.dark #formPanel input,
 body.dark #formPanel textarea {
-  background: #3a3a3a;
-  color: #fff;
-  border: 1px solid #555;
+  background: #46505c;
+  color: #f4f7fb;
+  border: 1px solid #657080;
 }
 
 body.dark .leaflet-popup-content-wrapper {
@@ -1070,9 +1159,9 @@ body.dark .leaflet-popup-tip {
 }
 
 body.dark .tool-header {
-  background: #2b2b2b;
-  border: 1px solid #444;
-  color: #6aa9ff;
+  background: #414956;
+  border: 1px solid #56606f;
+  color: #8fc4ff;
 }
 
 .tool-header {
@@ -1193,21 +1282,21 @@ body.dark .tool-header {
 }
 
 body.dark .radio-item {
-  background: #30343a;
-  border-color: #444;
-  color: #ddd;
+  background: #414956;
+  border-color: #56606f;
+  color: #e9eef5;
 }
 
 body.dark .radio-item:hover {
-  background: #343a42;
+  background: #495361;
 }
 
 body.dark .radio-item .dot {
-  border-color: #6aa9ff;
+  border-color: #8fc4ff;
 }
 
 body.dark .radio-item input:checked + .dot::after {
-  background: #6aa9ff;
+  background: #8fc4ff;
 }
 
 body.dark .radio-item:has(input:checked) {
@@ -1225,68 +1314,68 @@ body.dark .radio-item:has(input:checked) .dot::after {
 }
 
 body.dark .pipe-price {
-  color: #a4aab5;
+  color: #c8d1dd;
 }
 
 body.dark .stats-box {
-  background: #30343a;
-  border-color: #444;
+  background: #414956;
+  border-color: #56606f;
 }
 
 body.dark .stats-place {
-  color: #6aa9ff;
+  color: #8fc4ff;
 }
 
 body.dark .stats-grid div {
-  background: #262a30;
+  background: #333a44;
 }
 
 body.dark .stats-grid span {
-  color: #a4aab5;
+  color: #c8d1dd;
 }
 
 body.dark .stats-grid b {
-  color: #fff;
+  color: #f7faff;
 }
 
 body.dark .weather-box {
-  background: #30343a;
-  border-color: #444;
+  background: #414956;
+  border-color: #56606f;
 }
 
 body.dark .weather-head span {
-  color: #6aa9ff;
+  color: #8fc4ff;
 }
 
 body.dark .weather-head b {
-  color: #fff;
+  color: #f7faff;
 }
 
 body.dark .collapse-indicator {
-  color: #6aa9ff;
+  color: #8fc4ff;
 }
 
 body.dark .weather-icon,
 body.dark #weatherDate {
-  background: #262a30;
-  border-color: #444;
-  color: #6aa9ff;
+  background: #333a44;
+  border-color: #56606f;
+  color: #8fc4ff;
 }
 
 body.dark #weatherRefresh {
-  background: #262a30 !important;
-  border-color: #444 !important;
-  color: #6aa9ff !important;
+  background: #333a44 !important;
+  border-color: #56606f !important;
+  color: #8fc4ff !important;
 }
 
 body.dark #weatherRefresh:hover {
-  background: #343a42 !important;
+  background: #495361 !important;
 }
 
 body.dark .weather-date-pill {
-  background: #262a30;
-  border-color: #444;
-  color: #6aa9ff;
+  background: #333a44;
+  border-color: #56606f;
+  color: #8fc4ff;
 }
 
 body.dark .weather-date-pill.active {
@@ -1297,53 +1386,53 @@ body.dark .weather-date-pill.active {
 
 body.dark .weather-desc,
 body.dark .weather-grid span {
-  color: #a4aab5;
+  color: #c8d1dd;
 }
 
 body.dark .weather-hour {
-  background: #262a30;
+  background: #333a44;
 }
 
 body.dark .weather-hour span {
-  color: #a4aab5;
+  color: #c8d1dd;
 }
 
 body.dark .weather-hour b {
-  color: #fff;
+  color: #f7faff;
 }
 
 body.dark .weather-hour em {
-  color: #6aa9ff;
+  color: #8fc4ff;
 }
 
 body.dark .weather-grid div {
-  background: #262a30;
+  background: #333a44;
 }
 
 body.dark .weather-grid b {
-  color: #fff;
+  color: #f7faff;
 }
 
 body.dark .help-box {
-  background: #30343a;
-  border-color: #444;
+  background: #414956;
+  border-color: #56606f;
 }
 
 body.dark .help-box span {
-  color: #a4aab5;
+  color: #c8d1dd;
 }
 
 body.dark .help-box b {
-  color: #fff;
+  color: #f7faff;
 }
 
 body.dark .help-box a {
-  color: #6aa9ff;
+  color: #8fc4ff;
 }
 
 body.dark #layerControl * {
-  background: #30343a;
-  color: #6aa9ff;
+  background: #414956;
+  color: #8fc4ff;
 }
 
 body.dark #layerControl .layer-active {
@@ -1352,21 +1441,21 @@ body.dark #layerControl .layer-active {
 }
 
 body.dark .theme-card {
-  background: #30343a;
-  border-color: #444;
-  color: #6aa9ff;
+  background: #414956;
+  border-color: #56606f;
+  color: #8fc4ff;
 }
 
 body.dark .theme-card:hover {
-  background: #343a42;
+  background: #495361;
 }
 
 body.dark .theme-card .icon {
-  background: #262a30;
+  background: #333a44;
 }
 
 body.dark .theme-card-text {
-  color: #fff;
+  color: #f7faff;
 }
 
 body.dark .theme-switch {
@@ -1378,54 +1467,54 @@ body.dark .theme-switch::after {
 }
 
 body.dark .admin-box {
-  background: #30343a;
-  border-color: #444;
+  background: #414956;
+  border-color: #56606f;
 }
 
 body.dark .admin-box span {
-  color: #a4aab5;
+  color: #c8d1dd;
 }
 
 body.dark #authStatus {
-  color: #6aa9ff;
+  color: #8fc4ff;
 }
 
 body.dark .admin-actions button:last-child {
-  background: #262a30;
-  color: #6aa9ff;
+  background: #333a44;
+  color: #8fc4ff;
 }
 
 body.dark #sidebar input,
 body.dark #sidebar select {
-  background: #262a30;
-  border-color: #444;
-  color: #fff;
+  background: #333a44;
+  border-color: #56606f;
+  color: #f7faff;
 }
 
 body.dark #sidebar input::placeholder {
-  color: #a4aab5;
+  color: #c8d1dd;
 }
 
 body.dark #sidebar input:focus,
 body.dark #sidebar select:focus {
-  border-color: #6aa9ff;
-  box-shadow: 0 0 0 2px rgba(106, 169, 255, 0.18);
+  border-color: #8fc4ff;
+  box-shadow: 0 0 0 2px rgba(143, 196, 255, 0.18);
 }
 
 body.dark #totalCost {
-  background: #203a5f;
-  border-color: #3f7ed0;
-  color: #fff;
+  background: #28486f;
+  border-color: #5e9fe8;
+  color: #f7faff;
 }
 
 body.dark .estimate-pdf-btn {
-  background: #203a5f;
-  border-color: #3f7ed0;
-  color: #fff;
+  background: #28486f;
+  border-color: #5e9fe8;
+  color: #f7faff;
 }
 
 body.dark .estimate-pdf-btn:hover {
-  background: #24476f;
+  background: #2e527d;
 }
 
 .drawer-handle {

@@ -1,5 +1,5 @@
 // 🗺 карта
-const map = L.map('map').setView([49.5883, 34.5514], 9);
+const map = L.map('map').setView([49.5883, 34.5514], 10);
 
 const POLTAVA_CENTER = {
   lat: 49.5883,
@@ -124,6 +124,29 @@ let isAdmin = false;
 let accessClosed = false;
 let userLocationMarker = null;
 const LOCAL_BOREHOLES_KEY = "boreholes-app:boreholes";
+
+const boreholeIcon = L.divIcon({
+  className: "borehole-marker",
+  html: `
+    <span class="borehole-pin">
+      <span class="borehole-pin-core"></span>
+    </span>
+  `,
+  iconSize: [28, 36],
+  iconAnchor: [14, 34],
+  popupAnchor: [0, -32]
+});
+
+const tempBoreholeIcon = L.divIcon({
+  className: "temp-borehole-marker",
+  html: `
+    <span class="temp-borehole-pulse"></span>
+    <span class="temp-borehole-dot"></span>
+  `,
+  iconSize: [34, 34],
+  iconAnchor: [17, 17],
+  popupAnchor: [0, -15]
+});
 
 function removeTempPoint() {
   if (!window.tempMarker) return;
@@ -696,7 +719,7 @@ function formatDistanceField(value) {
   const number = getNumberFromText(value);
   return value === "" || value === null || value === undefined
     ? ""
-    : `${number.toFixed(2)} км до центру Полтави`;
+    : `${number.toFixed(2)} км, відстань від Полтави`;
 }
 
 function formatElevationField(value) {
@@ -920,7 +943,7 @@ map.on('click', async function(e) {
   clearForm();
   resetEstimateDepth();
 
-  window.tempMarker = L.marker(e.latlng)
+  window.tempMarker = L.marker(e.latlng, { icon: tempBoreholeIcon })
     .addTo(map)
     .bindPopup("Отримую висоту...");
   bindTempMarkerClose(window.tempMarker);
@@ -1060,7 +1083,7 @@ async function saveBorehole() {
 
 // 📍 створення маркера
 function addMarker(data) {
-  const marker = L.marker([data.lat, data.lng]).addTo(map);
+  const marker = L.marker([data.lat, data.lng], { icon: boreholeIcon }).addTo(map);
 
   marker.on("click", function () {
 
@@ -1126,7 +1149,7 @@ function addMarker(data) {
     Глибина: ${data.depth} м<br>
     Рівень першої води: ${data.water} м<br>
     Висота над рівнем моря: ${data.elevation} м<br>
-    ${data.distance ? `📍 Відстань до Полтави: ${Number(data.distance).toFixed(2)} км<br>` : ""}
+    ${data.distance ? `📍 відстань від Полтави: ${Number(data.distance).toFixed(2)} км<br>` : ""}
   `);
 }
 
@@ -1263,7 +1286,7 @@ async function updateBorehole() {
         Глибина: ${b.depth} м<br>
         Рівень першої води: ${b.water} м<br>
         Висота над рівнем моря: ${b.elevation} м<br>
-        📍 Відстань до Полтави: ${b.distance} км<br>
+        📍 відстань від Полтави: ${b.distance} км<br>
       `);
     }
 
@@ -1958,7 +1981,7 @@ function downloadEstimatePdf() {
           body: [
             ["№ свердловини", num],
             ["Місцевість", place],
-            ["Відстань до Полтави", distance]
+            ["відстань від Полтави", distance]
           ]
         },
         layout: "lightHorizontalLines"
