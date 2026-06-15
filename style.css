@@ -687,6 +687,46 @@ body.dark .leaflet-popup-tip {
   font-size: 12px;
 }
 
+.weather-hourly {
+  display: grid;
+  gap: 4px;
+  margin: 5px 0 6px 0;
+}
+
+.weather-hour {
+  display: grid;
+  grid-template-columns: 74px 1fr auto;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.weather-hour span {
+  color: #667085;
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.weather-hour b {
+  min-width: 0;
+  color: #1d2939;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.weather-hour em {
+  color: #2d89ef;
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .weather-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -772,6 +812,21 @@ body.dark .leaflet-popup-tip {
   font-size: 11.5px;
   line-height: 1.15;
   text-align: center;
+}
+
+.layer-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.layer-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .layer-active {
@@ -1014,6 +1069,22 @@ body.dark .weather-grid span {
   color: #a4aab5;
 }
 
+body.dark .weather-hour {
+  background: #262a30;
+}
+
+body.dark .weather-hour span {
+  color: #a4aab5;
+}
+
+body.dark .weather-hour b {
+  color: #fff;
+}
+
+body.dark .weather-hour em {
+  color: #6aa9ff;
+}
+
 body.dark .weather-grid div {
   background: #262a30;
 }
@@ -1115,6 +1186,13 @@ body.dark #totalCost {
 }
 
 @media (max-width: 768px) {
+  #formPanel {
+    box-sizing: border-box;
+    right: 2px;
+    width: min(300px, calc(100vw - 38px));
+    padding-right: 34px;
+  }
+
   .search-icon {
     width: 18px;
     height: 18px;
@@ -1214,6 +1292,10 @@ body.dark #totalCost {
     line-height: 1.15;
   }
 
+  .layer-icon {
+    font-size: 14px;
+  }
+
   .weather-title {
     margin-top: 5px !important;
   }
@@ -1265,6 +1347,29 @@ body.dark #totalCost {
   .weather-desc {
     margin-bottom: 4px;
     font-size: 10.8px;
+  }
+
+  .weather-hourly {
+    gap: 3px;
+    margin: 4px 0 5px 0;
+  }
+
+  .weather-hour {
+    grid-template-columns: 62px 1fr auto;
+    gap: 4px;
+    padding: 4px 5px;
+  }
+
+  .weather-hour span {
+    font-size: 9.5px;
+  }
+
+  .weather-hour b {
+    font-size: 10px;
+  }
+
+  .weather-hour em {
+    font-size: 9.5px;
   }
 
   .weather-date-pills {

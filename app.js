@@ -45,7 +45,17 @@ function initLayerControl() {
   Object.keys(baseLayers).forEach(name => {
     const div = document.createElement("div");
     div.className = "layer-item";
-    div.textContent = name;
+    const [icon, ...labelParts] = name.split(" ");
+
+    const iconSpan = document.createElement("span");
+    iconSpan.className = "layer-icon";
+    iconSpan.textContent = icon;
+
+    const textSpan = document.createElement("span");
+    textSpan.className = "layer-name";
+    textSpan.textContent = labelParts.join(" ");
+
+    div.append(iconSpan, textSpan);
 
     div.onclick = () => switchLayer(name, div);
 
@@ -262,6 +272,48 @@ function populateWeatherDates(data) {
   if (select) select.value = String(lastWeatherDayIndex);
 }
 
+function findHourlyIndexForBlock(date, startHour, endHour) {
+  const times = lastWeatherData?.hourly?.time || [];
+  return times.findIndex(time => {
+    if (!String(time).startsWith(date)) return false;
+    const hour = Number(String(time).slice(11, 13));
+    return hour >= startHour && hour < endHour;
+  });
+}
+
+function renderWeatherHours(dayIndex) {
+  const box = document.getElementById("weatherHourly");
+  const dailyDate = lastWeatherData?.daily?.time?.[dayIndex];
+  const hourly = lastWeatherData?.hourly || {};
+  if (!box || !dailyDate || !hourly.time?.length) return;
+
+  const blocks = [
+    { start: 9, end: 12 },
+    { start: 12, end: 16 },
+    { start: 16, end: 20 }
+  ];
+
+  box.innerHTML = "";
+
+  blocks.forEach(block => {
+    const hourlyIndex = findHourlyIndexForBlock(dailyDate, block.start, block.end);
+    if (hourlyIndex < 0) return;
+
+    const code = hourly.weather_code?.[hourlyIndex];
+    const temp = hourly.temperature_2m?.[hourlyIndex];
+    const chance = hourly.precipitation_probability?.[hourlyIndex];
+    const item = document.createElement("div");
+    item.className = "weather-hour";
+
+    item.innerHTML = `
+      <span>${String(block.start).padStart(2, "0")}:00-${String(block.end).padStart(2, "0")}:00</span>
+      <b>${weatherIcon(code)} ${weatherText(code)}</b>
+      <em>${Number.isFinite(temp) ? `${Math.round(temp)}°` : ""}${Number.isFinite(chance) ? ` · ${chance}%` : ""}</em>
+    `;
+    box.appendChild(item);
+  });
+}
+
 function renderWeatherDay() {
   if (!lastWeatherData) return;
 
@@ -327,6 +379,7 @@ function renderWeatherDay() {
 
   if (iconEl) iconEl.textContent = weatherIcon(code);
   if (descEl) descEl.textContent = weatherText(code);
+  renderWeatherHours(index);
 }
 
 async function loadWeather(lat = POLTAVA_CENTER.lat, lng = POLTAVA_CENTER.lng, label = "Полтава", keepDate = false) {
@@ -342,6 +395,7 @@ async function loadWeather(lat = POLTAVA_CENTER.lat, lng = POLTAVA_CENTER.lng, l
     url.searchParams.set("longitude", lng);
     url.searchParams.set("current", "temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,weather_code");
     url.searchParams.set("daily", "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max");
+    url.searchParams.set("hourly", "weather_code,temperature_2m,precipitation_probability");
     url.searchParams.set("forecast_days", "7");
     url.searchParams.set("timezone", "auto");
 
