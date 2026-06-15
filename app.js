@@ -960,7 +960,7 @@ function addMarker(data) {
 
   marker.bindPopup(`
     <b>№${data.num}</b><br>
-    ${data.placeLabel || data.placeName ? `${data.placeLabel || data.placeName}<br>` : ""}
+    ${getVisiblePlaceLabel(data) ? `${getVisiblePlaceLabel(data)}<br>` : ""}
     Ґрунт: ${data.soil}<br>
     Глибина: ${data.depth} м<br>
     Рівень першої води: ${data.water} м<br>
@@ -1092,7 +1092,7 @@ async function updateBorehole() {
     if (selectedMarker) {
       selectedMarker.setPopupContent(`
         <b>№${b.num}</b><br>
-        ${b.placeLabel || b.placeName ? `${b.placeLabel || b.placeName}<br>` : ""}
+        ${getVisiblePlaceLabel(b) ? `${getVisiblePlaceLabel(b)}<br>` : ""}
         Ґрунт: ${b.soil}<br>
         Глибина: ${b.depth} м<br>
         Рівень першої води: ${b.water} м<br>
@@ -1398,10 +1398,13 @@ function getStatsPlaceLabel(place) {
   return community ? `${name} — ${community}` : name;
 }
 
+function getVisiblePlaceLabel(place) {
+  return getStatsPlaceLabel(place);
+}
+
 function getPlaceDetail(place) {
   const parts = [
-    place.community,
-    place.district
+    place.community
   ].filter(Boolean);
 
   return [...new Set(parts)].join(", ");
@@ -1771,7 +1774,8 @@ function downloadEstimatePdf() {
   }
 
   const num = document.getElementById("num").value || "-";
-  const place = document.getElementById("placeLabel").value || "-";
+  const formPlace = getPlaceFromForm();
+  const place = getVisiblePlaceLabel(formPlace) || document.getElementById("placeLabel").value || "-";
   const distance = document.getElementById("distance").value || "-";
   const date = new Date().toLocaleDateString("uk-UA");
 
