@@ -45,17 +45,7 @@ function initLayerControl() {
   Object.keys(baseLayers).forEach(name => {
     const div = document.createElement("div");
     div.className = "layer-item";
-    const [icon, ...labelParts] = name.split(" ");
-
-    const iconSpan = document.createElement("span");
-    iconSpan.className = "layer-icon";
-    iconSpan.textContent = icon;
-
-    const textSpan = document.createElement("span");
-    textSpan.className = "layer-name";
-    textSpan.textContent = labelParts.join(" ");
-
-    div.append(iconSpan, textSpan);
+    div.textContent = name;
 
     div.onclick = () => switchLayer(name, div);
 
@@ -418,6 +408,39 @@ function changeWeatherDate(value) {
 
 function refreshWeather() {
   loadWeather(lastWeatherPoint.lat, lastWeatherPoint.lng, lastWeatherPoint.label, true);
+}
+
+function setPanelSectionCollapsed(id, trigger, collapsed) {
+  const panel = document.getElementById(id);
+  if (!panel) return;
+
+  panel.classList.toggle("collapsed", collapsed);
+
+  if (trigger) {
+    trigger.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  }
+}
+
+function togglePanelSection(id, trigger) {
+  const panel = document.getElementById(id);
+  if (!panel) return;
+
+  setPanelSectionCollapsed(id, trigger, !panel.classList.contains("collapsed"));
+}
+
+function initMobileCollapsibleSections() {
+  if (!window.matchMedia("(max-width: 768px)").matches) return;
+
+  setPanelSectionCollapsed(
+    "calculatorPanel",
+    document.querySelector("[onclick*='calculatorPanel']"),
+    true
+  );
+  setPanelSectionCollapsed(
+    "weatherBox",
+    document.querySelector("[onclick*='weatherBox']"),
+    true
+  );
 }
 
 function isFirebaseReady() {
@@ -1685,6 +1708,7 @@ window.addEventListener("load", function () {
   bindCostInputs();
   setDefaultCostValues();
   calculateCost();
+  initMobileCollapsibleSections();
 
   // textarea note
   const note = document.getElementById("note");
@@ -1772,6 +1796,7 @@ window.startAddPoint = startAddPoint;
 window.clearSearch = clearSearch;
 window.refreshWeather = refreshWeather;
 window.changeWeatherDate = changeWeatherDate;
+window.togglePanelSection = togglePanelSection;
 
 function syncRightArrow(){
   const panel = document.getElementById("formPanel");

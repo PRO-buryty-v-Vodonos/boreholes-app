@@ -9,7 +9,7 @@
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
-  <link rel="stylesheet" href="style.css?v=20260615-1" />
+  <link rel="stylesheet" href="style.css?v=20260615-3" />
 </head>
 <body>
    <div id="searchBox">
@@ -90,7 +90,7 @@
 
   <hr>
 
-<button class="tool-header">
+<button class="tool-header collapsible-toggle" onclick="togglePanelSection('calculatorPanel', this)" aria-expanded="true" type="button">
   <span class="icon">
     <!-- calculator icon -->
     <svg viewBox="0 0 24 24" fill="none">
@@ -106,8 +106,10 @@
   </span>
 
   Калькулятор вартості
+  <span class="collapse-indicator" aria-hidden="true">⌄</span>
 </button>
 
+<div id="calculatorPanel" class="collapsible-content">
 <div class="section-title">Ø Діаметр обсадної труби</div>
 
 <div class="radio-group">
@@ -130,6 +132,7 @@
 <input id="filterCost" placeholder="Ціна за фільтр" value="600" />
 
 <input id="totalCost" placeholder="Загальна вартість" readonly />
+</div>
 
   <hr>
 
@@ -150,7 +153,7 @@
 
   <div id="layerControl"></div>
 
-  <div class="section-title weather-title">
+  <div class="section-title weather-title collapsible-toggle" onclick="togglePanelSection('weatherBox', this)" aria-expanded="true" role="button" tabindex="0">
     <span class="icon">
       <svg viewBox="0 0 24 24" fill="none">
         <path d="M7 18a5 5 0 1 1 1.8-9.66A6 6 0 0 1 20 12.5"
@@ -160,6 +163,7 @@
       </svg>
     </span>
     Погода
+    <span class="collapse-indicator" aria-hidden="true">⌄</span>
   </div>
   <div id="weatherBox" class="weather-box">
     <div class="weather-head">
@@ -266,7 +270,7 @@
      📦 SCRIPTS
 ========================= -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=20260615-1"></script>
+<script src="app.js?v=20260615-2"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";

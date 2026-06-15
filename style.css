@@ -580,6 +580,27 @@ body.dark .leaflet-popup-tip {
   margin-top: 8px !important;
 }
 
+.collapsible-toggle {
+  cursor: pointer;
+}
+
+.collapse-indicator {
+  margin-left: auto;
+  color: #2d89ef;
+  font-size: 14px;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+
+.collapsible-toggle[aria-expanded="false"] .collapse-indicator {
+  transform: rotate(-90deg);
+}
+
+.collapsible-content.collapsed,
+.weather-box.collapsed {
+  display: none !important;
+}
+
 .weather-box {
   margin: 6px 0 8px 0;
   padding: 8px;
@@ -814,21 +835,6 @@ body.dark .leaflet-popup-tip {
   text-align: center;
 }
 
-.layer-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  line-height: 1;
-}
-
-.layer-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .layer-active {
   background: #2d89ef;
   color: white;
@@ -1033,6 +1039,10 @@ body.dark .weather-head span {
 
 body.dark .weather-head b {
   color: #fff;
+}
+
+body.dark .collapse-indicator {
+  color: #6aa9ff;
 }
 
 body.dark .weather-icon,
@@ -1292,12 +1302,12 @@ body.dark #totalCost {
     line-height: 1.15;
   }
 
-  .layer-icon {
-    font-size: 14px;
-  }
-
   .weather-title {
     margin-top: 5px !important;
+  }
+
+  .collapse-indicator {
+    font-size: 13px;
   }
 
   .weather-box {
