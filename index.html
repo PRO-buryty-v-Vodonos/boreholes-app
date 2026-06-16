@@ -15,7 +15,7 @@
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
-  <link rel="stylesheet" href="style.css?v=20260616-2" />
+  <link rel="stylesheet" href="style.css?v=20260616-3" />
 </head>
 <body>
    <div id="searchBox">
@@ -79,9 +79,6 @@
       <button type="button" onclick="adminLogin()">Увійти</button>
       <button type="button" onclick="adminLogout()">Вийти</button>
     </div>
-    <button id="excelExportBtn" class="admin-export-btn" type="button" onclick="exportBoreholesExcel()">
-      Вигрузити Excel
-    </button>
   </div>
   <hr>
 
@@ -242,16 +239,6 @@
     <b>💧 Журнал свердловин</b>
   </div>
 
-  <div class="borehole-filter">
-    <label for="yearFilter">Фільтр по року</label>
-    <div class="borehole-filter-row">
-      <select id="yearFilter" onchange="setYearFilter(this.value)">
-        <option value="all">Всі роки</option>
-      </select>
-      <span id="yearFilterCount">0 свердловин</span>
-    </div>
-  </div>
-
   <input id="num" placeholder="№ свердловини" />
   <input id="depth" placeholder="Глибина (м)" />
   <input id="water" placeholder="Рівень води (м)" />
@@ -311,6 +298,22 @@
       Видалити інформацію свердловини
     </button>
   </div>
+
+  <div class="admin-tools">
+    <div class="borehole-filter">
+      <label for="yearFilter">Фільтр по року</label>
+      <div class="borehole-filter-row">
+        <select id="yearFilter" onchange="setYearFilter(this.value)">
+          <option value="all">Всі роки</option>
+        </select>
+        <span id="yearFilterCount">0 свердловин</span>
+      </div>
+    </div>
+
+    <button id="excelExportBtn" class="admin-export-btn" type="button" onclick="exportBoreholesExcel()">
+      Вигрузити Excel
+    </button>
+  </div>
 </div>
 
 <!-- =========================
@@ -319,7 +322,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-<script src="app.js?v=20260616-1"></script>
+<script src="app.js?v=20260616-2"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";

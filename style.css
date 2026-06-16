@@ -445,16 +445,17 @@ body.dark .leaflet-popup-tip {
   cursor: pointer;
 }
 
-.guest-mode #formPanel .btn-stack {
+.guest-mode #formPanel .btn-stack,
+.guest-mode #formPanel .admin-tools {
   display: none;
 }
 
 .admin-title,
-#excelExportBtn {
+.admin-box #excelExportBtn {
   display: none;
 }
 
-.admin-mode #excelExportBtn {
+.admin-mode .admin-box #excelExportBtn {
   display: flex !important;
 }
 
@@ -603,6 +604,13 @@ body.dark .leaflet-popup-tip {
 
 .btn-stack {
   margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.admin-tools {
+  margin-top: 2px;
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -825,10 +833,10 @@ body.dark .leaflet-popup-tip {
 }
 
 .admin-export-btn {
-  width: 170px !important;
-  min-height: 30px;
-  margin: 7px auto 0 !important;
-  padding: 6px 8px;
+  width: 100% !important;
+  min-height: 34px;
+  margin: 0 !important;
+  padding: 8px 10px;
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
@@ -842,7 +850,7 @@ body.dark .leaflet-popup-tip {
 }
 
 .borehole-filter {
-  margin: 0 0 8px 0;
+  margin: 0;
   padding: 8px;
   border: 1px solid #d6e2ff;
   border-radius: 8px;
