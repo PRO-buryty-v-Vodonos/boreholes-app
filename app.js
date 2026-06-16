@@ -2064,6 +2064,23 @@ function escapeExcelCell(value) {
     .replace(/"/g, "&quot;");
 }
 
+function excelCell(value, styleId = "") {
+  const style = styleId ? ` ss:StyleID="${styleId}"` : "";
+  return `<Cell${style}><Data ss:Type="String">${escapeExcelCell(value)}</Data></Cell>`;
+}
+
+function excelRow(values, styleId = "") {
+  return `<Row>${values.map(value => excelCell(value, styleId)).join("")}</Row>`;
+}
+
+function excelSheet(name, rows) {
+  return `
+    <Worksheet ss:Name="${escapeExcelCell(name)}">
+      <Table>${rows.join("")}</Table>
+    </Worksheet>
+  `;
+}
+
 function exportBoreholesExcel() {
   if (!requireAdmin()) return;
 
@@ -2081,82 +2098,88 @@ function exportBoreholesExcel() {
   const years = Array.from(new Set(items.map(getBoreholeYear).filter(Boolean)))
     .sort((a, b) => Number(b) - Number(a));
 
-  const summaryRows = years.map(year => {
+  const summaryRows = [
+    excelRow([
+      "Рік",
+      "Кількість",
+      "Глибина від-до",
+      "Рівень 1-ї води від-до",
+      "Найчастіший ґрунт"
+    ], "Header")
+  ];
+
+  years.forEach(year => {
     const yearItems = items.filter(item => getBoreholeYear(item) === year);
-    return `
-      <tr>
-        <td>${escapeExcelCell(year)}</td>
-        <td>${yearItems.length}</td>
-        <td>${escapeExcelCell(rangeText(yearItems.map(item => item.depth)))}</td>
-        <td>${escapeExcelCell(rangeText(yearItems.map(item => item.water)))}</td>
-        <td>${escapeExcelCell(mostCommon(yearItems.map(item => item.soil)))}</td>
-      </tr>
-    `;
-  }).join("");
+    summaryRows.push(excelRow([
+      year,
+      yearItems.length,
+      rangeText(yearItems.map(item => item.depth)),
+      rangeText(yearItems.map(item => item.water)),
+      mostCommon(yearItems.map(item => item.soil))
+    ]));
+  });
 
-  const detailRows = items.map(item => `
-    <tr>
-      <td>${escapeExcelCell(item.num)}</td>
-      <td>${escapeExcelCell(getBoreholeYear(item) || "-")}</td>
-      <td>${escapeExcelCell(item.placeLabel || getVisiblePlaceLabel(item))}</td>
-      <td>${escapeExcelCell(item.depth)}</td>
-      <td>${escapeExcelCell(item.water)}</td>
-      <td>${escapeExcelCell(item.soil)}</td>
-      <td>${escapeExcelCell(item.elevation)}</td>
-      <td>${escapeExcelCell(item.distance)}</td>
-      <td>${escapeExcelCell(item.note)}</td>
-      <td>${escapeExcelCell(item.lat)}</td>
-      <td>${escapeExcelCell(item.lng)}</td>
-    </tr>
-  `).join("");
+  const unknownYearItems = items.filter(item => !getBoreholeYear(item));
+  if (unknownYearItems.length) {
+    summaryRows.push(excelRow([
+      "Без року",
+      unknownYearItems.length,
+      rangeText(unknownYearItems.map(item => item.depth)),
+      rangeText(unknownYearItems.map(item => item.water)),
+      mostCommon(unknownYearItems.map(item => item.soil))
+    ]));
+  }
 
-  const html = `
-    <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>
-          table { border-collapse: collapse; }
-          th, td { border: 1px solid #8eaadb; padding: 6px; }
-          th { background: #dbeafe; font-weight: bold; }
-          h2 { color: #155db7; }
-        </style>
-      </head>
-      <body>
-        <h2>Динаміка пробурених свердловин по роках</h2>
-        <table>
-          <tr>
-            <th>Рік</th>
-            <th>Кількість</th>
-            <th>Глибина від-до</th>
-            <th>Рівень 1-ї води від-до</th>
-            <th>Найчастіший ґрунт</th>
-          </tr>
-          ${summaryRows}
-        </table>
+  const detailRows = [
+    excelRow([
+      "№ свердловини",
+      "Рік",
+      "Місцевість",
+      "Глибина, м",
+      "Рівень 1-ї води, м",
+      "Ґрунт",
+      "Висота, м",
+      "Відстань від Полтави до місця буріння, км",
+      "Примітка",
+      "Широта",
+      "Довгота"
+    ], "Header"),
+    ...items.map(item => excelRow([
+      item.num,
+      getBoreholeYear(item) || "-",
+      item.placeLabel || getVisiblePlaceLabel(item),
+      item.depth,
+      item.water,
+      item.soil,
+      item.elevation,
+      item.distance,
+      item.note,
+      item.lat,
+      item.lng
+    ]))
+  ];
 
-        <h2>Детальна інформація</h2>
-        <table>
-          <tr>
-            <th>№ свердловини</th>
-            <th>Рік</th>
-            <th>Місцевість</th>
-            <th>Глибина, м</th>
-            <th>Рівень 1-ї води, м</th>
-            <th>Ґрунт</th>
-            <th>Висота, м</th>
-            <th>Відстань від Полтави до місця буріння, км</th>
-            <th>Примітка</th>
-            <th>Широта</th>
-            <th>Довгота</th>
-          </tr>
-          ${detailRows}
-        </table>
-      </body>
-    </html>
+  const workbook = `<?xml version="1.0" encoding="UTF-8"?>
+    <?mso-application progid="Excel.Sheet"?>
+    <Workbook
+      xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+      xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel"
+      xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+      xmlns:html="http://www.w3.org/TR/REC-html40">
+      <Styles>
+        <Style ss:ID="Header">
+          <Font ss:Bold="1"/>
+          <Interior ss:Color="#DBEAFE" ss:Pattern="Solid"/>
+        </Style>
+      </Styles>
+      ${excelSheet("Динаміка по роках", summaryRows)}
+      ${excelSheet("Свердловини", detailRows)}
+    </Workbook>
   `;
 
-  const blob = new Blob(["\ufeff", html], {
-    type: "application/vnd.ms-excel;charset=utf-8"
+  const blob = new Blob([workbook], {
+    type: "application/vnd.ms-excel"
   });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
