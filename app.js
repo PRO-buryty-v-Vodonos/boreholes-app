@@ -2089,14 +2089,18 @@ function exportBoreholesExcel() {
     return;
   }
 
-  const items = [...boreholes].sort((a, b) => {
+  const visibleItems = Array.from(boreholeMarkers.values())
+    .filter(({ marker, data }) => map.hasLayer(marker) && shouldShowBorehole(data))
+    .map(({ data }) => data);
+
+  const items = visibleItems.sort((a, b) => {
     const yearDiff = Number(getBoreholeYear(b) || 0) - Number(getBoreholeYear(a) || 0);
     if (yearDiff) return yearDiff;
     return String(a.num || "").localeCompare(String(b.num || ""), "uk", { numeric: true });
   });
 
   if (!items.length) {
-    alert("Немає свердловин для вигрузки");
+    alert("Немає видимих свердловин для вигрузки");
     return;
   }
 
@@ -2191,7 +2195,8 @@ function exportBoreholesExcel() {
 
   XLSX.utils.book_append_sheet(workbook, summarySheet, "Динаміка");
   XLSX.utils.book_append_sheet(workbook, detailSheet, "Свердловини");
-  XLSX.writeFile(workbook, `sverdlovyny_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  const yearSuffix = activeYearFilter === "all" ? "usi_roky" : activeYearFilter;
+  XLSX.writeFile(workbook, `sverdlovyny_${yearSuffix}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 function downloadEstimatePdf() {
