@@ -2084,6 +2084,11 @@ function excelSheet(name, rows) {
 function exportBoreholesExcel() {
   if (!requireAdmin()) return;
 
+  if (!window.XLSX) {
+    alert("Excel модуль ще не завантажився. Спробуй натиснути ще раз за кілька секунд.");
+    return;
+  }
+
   const items = [...boreholes].sort((a, b) => {
     const yearDiff = Number(getBoreholeYear(b) || 0) - Number(getBoreholeYear(a) || 0);
     if (yearDiff) return yearDiff;
@@ -2098,40 +2103,39 @@ function exportBoreholesExcel() {
   const years = Array.from(new Set(items.map(getBoreholeYear).filter(Boolean)))
     .sort((a, b) => Number(b) - Number(a));
 
-  const summaryRows = [
-    excelRow([
-      "Рік",
-      "Кількість",
-      "Глибина від-до",
-      "Рівень 1-ї води від-до",
-      "Найчастіший ґрунт"
-    ], "Header")
+  const summaryRows = [[
+    "Рік",
+    "Кількість",
+    "Глибина від-до",
+    "Рівень 1-ї води від-до",
+    "Найчастіший ґрунт"
+  ]
   ];
 
   years.forEach(year => {
     const yearItems = items.filter(item => getBoreholeYear(item) === year);
-    summaryRows.push(excelRow([
+    summaryRows.push([
       year,
       yearItems.length,
       rangeText(yearItems.map(item => item.depth)),
       rangeText(yearItems.map(item => item.water)),
       mostCommon(yearItems.map(item => item.soil))
-    ]));
+    ]);
   });
 
   const unknownYearItems = items.filter(item => !getBoreholeYear(item));
   if (unknownYearItems.length) {
-    summaryRows.push(excelRow([
+    summaryRows.push([
       "Без року",
       unknownYearItems.length,
       rangeText(unknownYearItems.map(item => item.depth)),
       rangeText(unknownYearItems.map(item => item.water)),
       mostCommon(unknownYearItems.map(item => item.soil))
-    ]));
+    ]);
   }
 
   const detailRows = [
-    excelRow([
+    [
       "№ свердловини",
       "Рік",
       "Місцевість",
@@ -2143,8 +2147,8 @@ function exportBoreholesExcel() {
       "Примітка",
       "Широта",
       "Довгота"
-    ], "Header"),
-    ...items.map(item => excelRow([
+    ],
+    ...items.map(item => [
       item.num,
       getBoreholeYear(item) || "-",
       item.placeLabel || getVisiblePlaceLabel(item),
@@ -2156,39 +2160,38 @@ function exportBoreholesExcel() {
       item.note,
       item.lat,
       item.lng
-    ]))
+    ])
   ];
 
-  const workbook = `<?xml version="1.0" encoding="UTF-8"?>
-    <?mso-application progid="Excel.Sheet"?>
-    <Workbook
-      xmlns="urn:schemas-microsoft-com:office:spreadsheet"
-      xmlns:o="urn:schemas-microsoft-com:office:office"
-      xmlns:x="urn:schemas-microsoft-com:office:excel"
-      xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
-      xmlns:html="http://www.w3.org/TR/REC-html40">
-      <Styles>
-        <Style ss:ID="Header">
-          <Font ss:Bold="1"/>
-          <Interior ss:Color="#DBEAFE" ss:Pattern="Solid"/>
-        </Style>
-      </Styles>
-      ${excelSheet("Динаміка по роках", summaryRows)}
-      ${excelSheet("Свердловини", detailRows)}
-    </Workbook>
-  `;
+  const workbook = XLSX.utils.book_new();
+  const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+  const detailSheet = XLSX.utils.aoa_to_sheet(detailRows);
 
-  const blob = new Blob([workbook], {
-    type: "application/vnd.ms-excel"
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `sverdlovyny_${new Date().toISOString().slice(0, 10)}.xls`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  summarySheet["!cols"] = [
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 18 },
+    { wch: 24 },
+    { wch: 22 }
+  ];
+
+  detailSheet["!cols"] = [
+    { wch: 18 },
+    { wch: 10 },
+    { wch: 34 },
+    { wch: 14 },
+    { wch: 20 },
+    { wch: 18 },
+    { wch: 12 },
+    { wch: 38 },
+    { wch: 34 },
+    { wch: 14 },
+    { wch: 14 }
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Динаміка");
+  XLSX.utils.book_append_sheet(workbook, detailSheet, "Свердловини");
+  XLSX.writeFile(workbook, `sverdlovyny_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 function downloadEstimatePdf() {
