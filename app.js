@@ -159,6 +159,73 @@ function getBoreholeYear(data) {
   return match ? match[1] : "";
 }
 
+function getBoreholeDuplicateKey(data) {
+  const lat = Number(data?.lat);
+  const lng = Number(data?.lng);
+  const num = normalizePlaceText(data?.num || "");
+
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    const coordKey = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+    return num ? `${num}|${coordKey}` : coordKey;
+  }
+
+  return num ? `num:${num}` : String(data?.id || "");
+}
+
+function getBoreholeCompleteness(data) {
+  return [
+    data?.num,
+    data?.depth,
+    data?.water,
+    data?.soil,
+    data?.note,
+    data?.elevation,
+    data?.distance,
+    data?.placeName,
+    data?.community,
+    data?.placeLabel
+  ].filter(value => String(value ?? "").trim()).length;
+}
+
+function isFirebaseBoreholeId(id) {
+  return id && !String(id).startsWith("local-");
+}
+
+function mergeBoreholeRecords(existing, incoming) {
+  if (!existing) return { ...incoming };
+
+  const existingScore = getBoreholeCompleteness(existing);
+  const incomingScore = getBoreholeCompleteness(incoming);
+  const base = incomingScore >= existingScore ? incoming : existing;
+  const extra = base === incoming ? existing : incoming;
+
+  const merged = { ...extra, ...base };
+
+  Object.keys(extra || {}).forEach(key => {
+    const currentValue = merged[key];
+    const extraValue = extra[key];
+    if ((currentValue === undefined || currentValue === null || currentValue === "") && extraValue !== undefined) {
+      merged[key] = extraValue;
+    }
+  });
+
+  if (isFirebaseBoreholeId(existing.id)) merged.id = existing.id;
+  if (isFirebaseBoreholeId(incoming.id)) merged.id = incoming.id;
+
+  return merged;
+}
+
+function dedupeBoreholes(items) {
+  const byKey = new Map();
+
+  items.forEach(item => {
+    const key = getBoreholeDuplicateKey(item);
+    byKey.set(key, mergeBoreholeRecords(byKey.get(key), item));
+  });
+
+  return Array.from(byKey.values());
+}
+
 function getBoreholesByYear(year = activeYearFilter) {
   return boreholes.filter(item => year === "all" || getBoreholeYear(item) === year);
 }
@@ -773,14 +840,18 @@ function saveLocalBoreholes() {
 }
 
 function upsertBoreholeLocal(data) {
-  const index = boreholes.findIndex(b => b.id === data.id);
+  const incomingKey = getBoreholeDuplicateKey(data);
+  const index = boreholes.findIndex(b =>
+    b.id === data.id || getBoreholeDuplicateKey(b) === incomingKey
+  );
 
   if (index >= 0) {
-    boreholes[index] = data;
+    boreholes[index] = mergeBoreholeRecords(boreholes[index], data);
   } else {
     boreholes.push(data);
   }
 
+  boreholes = dedupeBoreholes(boreholes);
   saveLocalBoreholes();
 }
 
@@ -2089,9 +2160,9 @@ function exportBoreholesExcel() {
     return;
   }
 
-  const visibleItems = Array.from(boreholeMarkers.values())
+  const visibleItems = dedupeBoreholes(Array.from(boreholeMarkers.values())
     .filter(({ marker, data }) => map.hasLayer(marker) && shouldShowBorehole(data))
-    .map(({ data }) => data);
+    .map(({ data }) => data));
 
   const items = visibleItems.sort((a, b) => {
     const yearDiff = Number(getBoreholeYear(b) || 0) - Number(getBoreholeYear(a) || 0);
@@ -2353,16 +2424,15 @@ async function loadBoreholes() {
         ...doc.data()
       }));
 
-      const merged = new Map();
-      boreholes.forEach(item => merged.set(item.id, item));
-      firebaseBoreholes.forEach(item => merged.set(item.id, item));
-      boreholes = Array.from(merged.values());
+      boreholes = dedupeBoreholes([...boreholes, ...firebaseBoreholes]);
       saveLocalBoreholes();
     } catch (e) {
       console.log("Firebase load error:", e);
     }
   }
 
+  boreholes = dedupeBoreholes(boreholes);
+  saveLocalBoreholes();
   boreholes.forEach(addMarker);
   refreshYearFilterOptions();
   applyYearFilter();
