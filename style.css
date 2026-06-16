@@ -406,8 +406,34 @@ body.dark .leaflet-popup-tip {
   cursor: pointer;
 }
 
+#refreshMapBtn {
+  position: absolute;
+  bottom: 26px;
+  right: 20px;
+  z-index: 1000;
+  width: 46px;
+  height: 46px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #2d89ef;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 800;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+  cursor: pointer;
+}
+
 .guest-mode #formPanel .btn-stack {
   display: none;
+}
+
+.admin-title,
+#excelExportBtn {
+  display: none;
+}
+
+.admin-mode #excelExportBtn {
+  display: flex !important;
 }
 
 .access-overlay {
@@ -774,6 +800,65 @@ body.dark .leaflet-popup-tip {
 .admin-actions button:last-child {
   background: #eef5ff;
   color: #155db7;
+}
+
+.admin-export-btn {
+  width: 170px !important;
+  min-height: 30px;
+  margin: 7px auto 0 !important;
+  padding: 6px 8px;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  border: 1px solid #b8d7ff;
+  border-radius: 8px;
+  background: #fff;
+  color: #155db7;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.borehole-filter {
+  margin: 0 0 8px 0;
+  padding: 8px;
+  border: 1px solid #d6e2ff;
+  border-radius: 8px;
+  background: #f4f7ff;
+}
+
+.borehole-filter label {
+  display: block;
+  margin-bottom: 5px;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.borehole-filter-row {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 6px;
+  align-items: center;
+}
+
+.borehole-filter select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 6px;
+  border: 1px solid #c8d7ee;
+  border-radius: 7px;
+  background: #fff;
+  color: #1d2939;
+  font-size: 12px;
+}
+
+#yearFilterCount {
+  min-width: 0;
+  color: #155db7;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
 }
 
 #layerControl {
@@ -1481,6 +1566,27 @@ body.dark #authStatus {
 
 body.dark .admin-actions button:last-child {
   background: #333a44;
+  color: #8fc4ff;
+}
+
+body.dark .admin-export-btn,
+body.dark .borehole-filter {
+  background: #414956;
+  border-color: #56606f;
+  color: #8fc4ff;
+}
+
+body.dark .borehole-filter label {
+  color: #c8d1dd;
+}
+
+body.dark .borehole-filter select {
+  background: #333a44;
+  border-color: #56606f;
+  color: #f7faff;
+}
+
+body.dark #yearFilterCount {
   color: #8fc4ff;
 }
 

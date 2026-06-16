@@ -2,17 +2,20 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8" />
-   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#2d89ef" />
+  <meta name="msapplication-navbutton-color" content="#2d89ef" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>My App</title>
   <title>Свердловини GIS</title>
-  <link rel="manifest" href="manifest.json" />
+  <link rel="manifest" href="manifest.json?v=20260616-1" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
-  <link rel="stylesheet" href="style.css?v=20260615-17" />
+  <link rel="stylesheet" href="style.css?v=20260616-1" />
 </head>
 <body>
    <div id="searchBox">
@@ -68,7 +71,7 @@
   </button>
 
   <div class="admin-box">
-    <span>Адмін</span>
+    <span class="admin-title">Адмін</span>
     <div id="authStatus">Гостьовий перегляд</div>
     <input id="adminEmail" type="email" placeholder="Email адміна" autocomplete="username" />
     <input id="adminPassword" type="password" placeholder="Пароль" autocomplete="current-password" />
@@ -76,6 +79,9 @@
       <button type="button" onclick="adminLogin()">Увійти</button>
       <button type="button" onclick="adminLogout()">Вийти</button>
     </div>
+    <button id="excelExportBtn" class="admin-export-btn" type="button" onclick="exportBoreholesExcel()">
+      Вигрузити Excel
+    </button>
   </div>
   <hr>
 
@@ -220,6 +226,7 @@
 <div id="map"></div>
 <button id="addBtn" onclick="startAddPoint()">＋</button>
 <button id="locateBtn" onclick="locateUser()" title="Моє місце">⌖</button>
+<button id="refreshMapBtn" onclick="refreshMap()" title="Оновити карту">↻</button>
 <div id="accessOverlay" class="access-overlay hidden">
   <div>
     <b>Доступ тимчасово закрито</b>
@@ -233,6 +240,16 @@
 
   <div class="header">
     <b>💧 Журнал свердловин</b>
+  </div>
+
+  <div class="borehole-filter">
+    <label for="yearFilter">Фільтр по року</label>
+    <div class="borehole-filter-row">
+      <select id="yearFilter" onchange="setYearFilter(this.value)">
+        <option value="all">Всі роки</option>
+      </select>
+      <span id="yearFilterCount">0 свердловин</span>
+    </div>
   </div>
 
   <input id="num" placeholder="№ свердловини" />
@@ -302,7 +319,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-<script src="app.js?v=20260615-15"></script>
+<script src="app.js?v=20260616-1"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";

@@ -1,4 +1,4 @@
-const CACHE_NAME = "boreholes-map-v20260615-4";
+const CACHE_NAME = "boreholes-map-v20260616-1";
 
 const APP_SHELL = [
   "./",

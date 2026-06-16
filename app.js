@@ -123,6 +123,8 @@ let lastWeatherDayIndex = 0;
 let isAdmin = false;
 let accessClosed = false;
 let userLocationMarker = null;
+let activeYearFilter = "all";
+const boreholeMarkers = new Map();
 const LOCAL_BOREHOLES_KEY = "boreholes-app:boreholes";
 
 const boreholeIcon = L.divIcon({
@@ -147,6 +149,83 @@ const tempBoreholeIcon = L.divIcon({
   iconAnchor: [17, 17],
   popupAnchor: [0, -15]
 });
+
+function getBoreholeMarkerId(data) {
+  return String(data?.id || `${data?.lat || ""}_${data?.lng || ""}_${data?.num || ""}`);
+}
+
+function getBoreholeYear(data) {
+  const match = String(data?.num || "").match(/\/\s*((?:19|20)\d{2})\b/);
+  return match ? match[1] : "";
+}
+
+function getBoreholesByYear(year = activeYearFilter) {
+  return boreholes.filter(item => year === "all" || getBoreholeYear(item) === year);
+}
+
+function shouldShowBorehole(data) {
+  return activeYearFilter === "all" || getBoreholeYear(data) === activeYearFilter;
+}
+
+function clearBoreholeMarkers() {
+  boreholeMarkers.forEach(({ marker }) => {
+    if (map.hasLayer(marker)) {
+      map.removeLayer(marker);
+    }
+  });
+  boreholeMarkers.clear();
+}
+
+function applyYearFilter() {
+  boreholeMarkers.forEach(({ marker, data }) => {
+    const visible = shouldShowBorehole(data);
+
+    if (visible && !map.hasLayer(marker)) {
+      marker.addTo(map);
+    }
+
+    if (!visible && map.hasLayer(marker)) {
+      map.removeLayer(marker);
+    }
+  });
+
+  updateYearFilterCount();
+}
+
+function updateYearFilterCount() {
+  const countEl = document.getElementById("yearFilterCount");
+  if (!countEl) return;
+
+  const count = getBoreholesByYear().length;
+  countEl.textContent = `${count} ${count === 1 ? "свердловина" : "свердловин"}`;
+}
+
+function refreshYearFilterOptions() {
+  const select = document.getElementById("yearFilter");
+  if (!select) return;
+
+  const current = activeYearFilter;
+  const years = Array.from(new Set(boreholes.map(getBoreholeYear).filter(Boolean)))
+    .sort((a, b) => Number(b) - Number(a));
+
+  select.innerHTML = '<option value="all">Всі роки</option>';
+
+  years.forEach(year => {
+    const option = document.createElement("option");
+    option.value = year;
+    option.textContent = year;
+    select.appendChild(option);
+  });
+
+  activeYearFilter = current !== "all" && years.includes(current) ? current : "all";
+  select.value = activeYearFilter;
+  updateYearFilterCount();
+}
+
+function setYearFilter(year) {
+  activeYearFilter = year || "all";
+  applyYearFilter();
+}
 
 function removeTempPoint() {
   if (!window.tempMarker) return;
@@ -465,6 +544,13 @@ function changeWeatherDate(value) {
 
 function refreshWeather() {
   loadWeather(lastWeatherPoint.lat, lastWeatherPoint.lng, lastWeatherPoint.label, true);
+}
+
+async function refreshMap() {
+  map.invalidateSize();
+  await loadPoltavaBoundary();
+  await loadBoreholes();
+  refreshWeather();
 }
 
 function locateUser() {
@@ -845,11 +931,27 @@ function mostCommon(values) {
   return Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || "-";
 }
 
-function getPlaceStats(place) {
-  const key = getPlaceKey(place);
-  if (!key || key === "|") return null;
+function getAreaStatsItems(place) {
+  const lat = Number(place?.lat);
+  const lng = Number(place?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
 
-  const items = boreholes.filter(item => getPlaceKey(item) === key);
+  const halfKm = 1.5;
+  const lngKmFactor = 111.32 * Math.cos(lat * Math.PI / 180);
+
+  return boreholes.filter(item => {
+    const itemLat = Number(item.lat);
+    const itemLng = Number(item.lng);
+    if (!Number.isFinite(itemLat) || !Number.isFinite(itemLng)) return false;
+
+    const northSouthKm = Math.abs(itemLat - lat) * 111.32;
+    const westEastKm = Math.abs(itemLng - lng) * lngKmFactor;
+    return northSouthKm <= halfKm && westEastKm <= halfKm;
+  });
+}
+
+function getAreaStats(place) {
+  const items = getAreaStatsItems(place);
   if (!items.length) return { count: 0 };
 
   return {
@@ -860,58 +962,27 @@ function getPlaceStats(place) {
   };
 }
 
-function renderPlaceStats(place) {
-  const stats = getPlaceStats(place);
-  const label = place?.label || getPlaceLabel({
-    name: place?.placeName || place?.name || "",
-    community: place?.community || "",
-    district: place?.district || ""
-  });
+function getAreaStatsLabel(place) {
+  const name = String(place?.placeName || place?.name || "").trim();
+  const label = String(place?.label || "").trim();
+  const lowerName = name.toLowerCase();
+  const source = `${name} ${label}`.toLowerCase();
 
-  const placeEl = document.querySelector(".stats-place");
-  const countEl = document.getElementById("statsCount");
-  const depthEl = document.getElementById("statsDepth");
-  const waterEl = document.getElementById("statsWater");
-  const soilEl = document.getElementById("statsSoil");
+  if (lowerName.includes("полтава")) return "м. Полтава";
 
-  if (placeEl) placeEl.textContent = label || "Вибери свердловину або населений пункт";
-  if (countEl) countEl.textContent = stats ? String(stats.count) : "0";
-  if (depthEl) depthEl.textContent = stats?.avgDepth ? `${stats.avgDepth.toFixed(1)} м` : "-";
-  if (waterEl) waterEl.textContent = stats?.avgWater ? `${stats.avgWater.toFixed(1)} м` : "-";
-  if (soilEl) soilEl.textContent = stats?.soil || "-";
-}
+  if (name && (/^м\./i.test(name) || source.includes("місто") || source.includes("city") || source.includes("town"))) {
+    return /^м\./i.test(name) ? name : `м. ${name}`;
+  }
 
-function renderPlaceStats(place) {
-  const stats = getPlaceStats(place);
-  const label = place?.label || getPlaceLabel({
-    name: place?.placeName || place?.name || "",
-    community: place?.community || "",
-    district: place?.district || ""
-  });
-
-  const placeEl = document.querySelector(".stats-place");
-  const countEl = document.getElementById("statsCount");
-  const depthEl = document.getElementById("statsDepth");
-  const waterEl = document.getElementById("statsWater");
-  const soilEl = document.getElementById("statsSoil");
-
-  if (depthEl?.previousElementSibling) depthEl.previousElementSibling.textContent = "Глибина від-до";
-  if (waterEl?.previousElementSibling) waterEl.previousElementSibling.textContent = "Рівень 1-ї води";
-
-  if (placeEl) placeEl.textContent = label || "Вибери свердловину або населений пункт";
-  if (countEl) countEl.textContent = stats ? String(stats.count) : "0";
-  if (depthEl) depthEl.textContent = stats?.depthRange || "-";
-  if (waterEl) waterEl.textContent = stats?.waterRange || "-";
-  if (soilEl) soilEl.textContent = stats?.soil || "-";
-}
-
-// показати старі точки
-function renderPlaceStats(place) {
-  const stats = getPlaceStats(place);
-  const label = getStatsPlaceLabel({
-    name: place?.placeName || place?.name || "",
+  return getStatsPlaceLabel({
+    name,
     community: place?.community || ""
-  });
+  }) || "Обрана точка";
+}
+
+function renderPlaceStats(place) {
+  const stats = getAreaStats(place);
+  const label = getAreaStatsLabel(place);
 
   const placeEl = document.querySelector(".stats-place");
   const countEl = document.getElementById("statsCount");
@@ -922,7 +993,7 @@ function renderPlaceStats(place) {
   if (depthEl?.previousElementSibling) depthEl.previousElementSibling.textContent = "Глибина від-до";
   if (waterEl?.previousElementSibling) waterEl.previousElementSibling.textContent = "Рівень 1-ї води";
 
-  if (placeEl) placeEl.textContent = label || "Вибери свердловину або населений пункт";
+  if (placeEl) placeEl.textContent = place ? label : "Вибери свердловину або населений пункт";
   if (countEl) countEl.textContent = stats ? String(stats.count) : "0";
   if (depthEl) depthEl.textContent = stats?.depthRange || "-";
   if (waterEl) waterEl.textContent = stats?.waterRange || "-";
@@ -978,9 +1049,14 @@ map.on('click', async function(e) {
         Math.abs(currentLatLng.lat - clickedLat) < 0.000001 &&
         Math.abs(currentLatLng.lng - clickedLng) < 0.000001
       ) {
-        setPlaceUI(place);
-        renderPlaceStats(place);
-        loadWeather(clickedLat, clickedLng, place.label || place.placeName || "Обрана точка");
+        const pointPlace = {
+          ...(place || {}),
+          lat: clickedLat,
+          lng: clickedLng
+        };
+        setPlaceUI(pointPlace);
+        renderPlaceStats(pointPlace);
+        loadWeather(clickedLat, clickedLng, pointPlace.label || pointPlace.placeName || "Обрана точка");
       }
     })
     .catch(error => console.log("Place detect error:", error));
@@ -1052,6 +1128,8 @@ async function saveBorehole() {
 
     upsertBoreholeLocal(data);
     addMarker(data);
+    refreshYearFilterOptions();
+    applyYearFilter();
     renderPlaceStats(data);
 
     alert(isFirebaseReady()
@@ -1064,6 +1142,8 @@ async function saveBorehole() {
     data.id = createLocalId();
     upsertBoreholeLocal(data);
     addMarker(data);
+    refreshYearFilterOptions();
+    applyYearFilter();
     renderPlaceStats(data);
 
     alert("Firebase не відповів, тому точку збережено локально");
@@ -1083,7 +1163,19 @@ async function saveBorehole() {
 
 // 📍 створення маркера
 function addMarker(data) {
-  const marker = L.marker([data.lat, data.lng], { icon: boreholeIcon }).addTo(map);
+  const markerId = getBoreholeMarkerId(data);
+  const existing = boreholeMarkers.get(markerId);
+
+  if (existing && map.hasLayer(existing.marker)) {
+    map.removeLayer(existing.marker);
+  }
+
+  const marker = L.marker([data.lat, data.lng], { icon: boreholeIcon });
+  boreholeMarkers.set(markerId, { marker, data });
+
+  if (shouldShowBorehole(data)) {
+    marker.addTo(map);
+  }
 
   marker.on("click", function () {
 
@@ -1118,7 +1210,9 @@ function addMarker(data) {
       placeName: data.placeName || "",
       community: data.community || "",
       district: data.district || "",
-      label: data.placeLabel || ""
+      label: data.placeLabel || "",
+      lat: data.lat,
+      lng: data.lng
     };
     setPlaceUI(markerPlace);
     renderPlaceStats(markerPlace);
@@ -1128,6 +1222,11 @@ function addMarker(data) {
       getPlaceByLatLng(data.lat, data.lng)
         .then(place => {
           if (!place) return;
+          const markerPlace = {
+            ...place,
+            lat: data.lat,
+            lng: data.lng
+          };
           Object.assign(data, {
             placeName: place.placeName || place.name || "",
             community: place.community || "",
@@ -1135,8 +1234,8 @@ function addMarker(data) {
             placeLabel: place.label || getPlaceLabel(place)
           });
           upsertBoreholeLocal(data);
-          setPlaceUI(place);
-          renderPlaceStats(place);
+          setPlaceUI(markerPlace);
+          renderPlaceStats(markerPlace);
         })
         .catch(error => console.log("Marker place detect error:", error));
     }
@@ -1174,10 +1273,13 @@ async function deleteSelected() {
       }
 
       map.removeLayer(selectedMarker);
+      boreholeMarkers.delete(selectedId);
       boreholes = boreholes.filter(
         b => b.id !== selectedId
       );
       saveLocalBoreholes();
+      refreshYearFilterOptions();
+      applyYearFilter();
       selectedMarker = null;
       selectedId = null;
       renderPlaceStats(removed);
@@ -1276,6 +1378,12 @@ async function updateBorehole() {
     // 🔵 оновлюємо локально
     Object.assign(b, updatedData);
     saveLocalBoreholes();
+    const storedMarker = boreholeMarkers.get(selectedId);
+    if (storedMarker) {
+      storedMarker.data = b;
+    }
+    refreshYearFilterOptions();
+    applyYearFilter();
     renderPlaceStats(b);
 
     if (selectedMarker) {
@@ -1297,6 +1405,12 @@ async function updateBorehole() {
     console.log("Update error:", e);
     Object.assign(b, updatedData);
     saveLocalBoreholes();
+    const storedMarker = boreholeMarkers.get(selectedId);
+    if (storedMarker) {
+      storedMarker.data = b;
+    }
+    refreshYearFilterOptions();
+    applyYearFilter();
     alert("Firebase не відповів, але зміни збережено локально");
   }
 }
@@ -1942,6 +2056,118 @@ function money(value) {
   return `${Number(value || 0).toFixed(2)} грн`;
 }
 
+function escapeExcelCell(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function exportBoreholesExcel() {
+  if (!requireAdmin()) return;
+
+  const items = [...boreholes].sort((a, b) => {
+    const yearDiff = Number(getBoreholeYear(b) || 0) - Number(getBoreholeYear(a) || 0);
+    if (yearDiff) return yearDiff;
+    return String(a.num || "").localeCompare(String(b.num || ""), "uk", { numeric: true });
+  });
+
+  if (!items.length) {
+    alert("Немає свердловин для вигрузки");
+    return;
+  }
+
+  const years = Array.from(new Set(items.map(getBoreholeYear).filter(Boolean)))
+    .sort((a, b) => Number(b) - Number(a));
+
+  const summaryRows = years.map(year => {
+    const yearItems = items.filter(item => getBoreholeYear(item) === year);
+    return `
+      <tr>
+        <td>${escapeExcelCell(year)}</td>
+        <td>${yearItems.length}</td>
+        <td>${escapeExcelCell(rangeText(yearItems.map(item => item.depth)))}</td>
+        <td>${escapeExcelCell(rangeText(yearItems.map(item => item.water)))}</td>
+        <td>${escapeExcelCell(mostCommon(yearItems.map(item => item.soil)))}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const detailRows = items.map(item => `
+    <tr>
+      <td>${escapeExcelCell(item.num)}</td>
+      <td>${escapeExcelCell(getBoreholeYear(item) || "-")}</td>
+      <td>${escapeExcelCell(item.placeLabel || getVisiblePlaceLabel(item))}</td>
+      <td>${escapeExcelCell(item.depth)}</td>
+      <td>${escapeExcelCell(item.water)}</td>
+      <td>${escapeExcelCell(item.soil)}</td>
+      <td>${escapeExcelCell(item.elevation)}</td>
+      <td>${escapeExcelCell(item.distance)}</td>
+      <td>${escapeExcelCell(item.note)}</td>
+      <td>${escapeExcelCell(item.lat)}</td>
+      <td>${escapeExcelCell(item.lng)}</td>
+    </tr>
+  `).join("");
+
+  const html = `
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          table { border-collapse: collapse; }
+          th, td { border: 1px solid #8eaadb; padding: 6px; }
+          th { background: #dbeafe; font-weight: bold; }
+          h2 { color: #155db7; }
+        </style>
+      </head>
+      <body>
+        <h2>Динаміка пробурених свердловин по роках</h2>
+        <table>
+          <tr>
+            <th>Рік</th>
+            <th>Кількість</th>
+            <th>Глибина від-до</th>
+            <th>Рівень 1-ї води від-до</th>
+            <th>Найчастіший ґрунт</th>
+          </tr>
+          ${summaryRows}
+        </table>
+
+        <h2>Детальна інформація</h2>
+        <table>
+          <tr>
+            <th>№ свердловини</th>
+            <th>Рік</th>
+            <th>Місцевість</th>
+            <th>Глибина, м</th>
+            <th>Рівень 1-ї води, м</th>
+            <th>Ґрунт</th>
+            <th>Висота, м</th>
+            <th>Відстань від Полтави до місця буріння, км</th>
+            <th>Примітка</th>
+            <th>Широта</th>
+            <th>Довгота</th>
+          </tr>
+          ${detailRows}
+        </table>
+      </body>
+    </html>
+  `;
+
+  const blob = new Blob(["\ufeff", html], {
+    type: "application/vnd.ms-excel;charset=utf-8"
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `sverdlovyny_${new Date().toISOString().slice(0, 10)}.xls`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function downloadEstimatePdf() {
   if (!window.pdfMake) {
     alert("PDF модуль ще не завантажився. Спробуй натиснути ще раз за кілька секунд.");
@@ -1967,6 +2193,8 @@ function downloadEstimatePdf() {
   const place = getVisiblePlaceLabel(formPlace) || document.getElementById("placeLabel").value || "-";
   const distance = document.getElementById("distance").value || "-";
   const date = new Date().toLocaleDateString("uk-UA");
+  const appUrl = window.location.origin + window.location.pathname;
+  const youtubeUrl = "https://www.youtube.com/@PRO_buryty_v_vodonos";
 
   const docDefinition = {
     pageSize: "A4",
@@ -1974,14 +2202,13 @@ function downloadEstimatePdf() {
     content: [
       { text: "Кошторис буріння свердловини", style: "title" },
       { text: `Дата: ${date}`, style: "muted" },
-      { text: "Дані точки", style: "section" },
       {
         table: {
           widths: ["42%", "*"],
           body: [
             ["№ свердловини", num],
             ["Місцевість", place],
-            ["відстань від Полтави", distance]
+            ["Відстань від Полтави до місця буріння", distance]
           ]
         },
         layout: "lightHorizontalLines"
@@ -2000,17 +2227,20 @@ function downloadEstimatePdf() {
             ["Обсадна труба", `${depth} м`, getSelectedPipeLabel(), money(pipeCost)],
             ["Транспортні нарахування", "-", "-", money(transport)],
             ["Фільтр", "-", "-", money(filter)],
-            [{ text: "Разом", bold: true }, "", "", { text: money(total), bold: true }]
+            ["", "", { text: "Разом", bold: true, alignment: "right" }, { text: money(total), bold: true, alignment: "right" }]
           ]
         },
         layout: "lightHorizontalLines"
       },
-      { text: "Примітка: кошторис є попереднім і може уточнюватися після огляду місця робіт.", style: "note" }
+      { text: "Примітка: кошторис є попереднім і може уточнюватися після огляду місця робіт.", style: "note" },
+      { qr: appUrl, fit: 82, alignment: "center", margin: [0, 12, 0, 4] },
+      { text: "Відкрити додаток", alignment: "center", color: "#2d89ef", fontSize: 9, margin: [0, 0, 0, 8] },
+      { text: `YouTube: ${youtubeUrl}`, link: youtubeUrl, alignment: "center", color: "#2d89ef", fontSize: 10 }
     ],
     styles: {
-      title: { fontSize: 18, bold: true, margin: [0, 0, 0, 8] },
-      section: { fontSize: 13, bold: true, margin: [0, 14, 0, 6] },
-      muted: { color: "#667085", margin: [0, 0, 0, 6] },
+      title: { fontSize: 18, bold: true, alignment: "center", margin: [0, 0, 0, 8] },
+      section: { fontSize: 13, bold: true, alignment: "center", margin: [0, 14, 0, 6] },
+      muted: { color: "#667085", alignment: "center", margin: [0, 0, 0, 8] },
       note: { color: "#667085", fontSize: 10, margin: [0, 14, 0, 0] }
     },
     defaultStyle: {
@@ -2078,6 +2308,7 @@ async function testSave() {
 }
 
 async function loadBoreholes() {
+  clearBoreholeMarkers();
   boreholes = loadLocalBoreholes();
 
   if (isFirebaseReady()) {
@@ -2102,6 +2333,8 @@ async function loadBoreholes() {
   }
 
   boreholes.forEach(addMarker);
+  refreshYearFilterOptions();
+  applyYearFilter();
 }
 
 window.addEventListener("load", loadBoreholes);
@@ -2132,6 +2365,9 @@ window.refreshWeather = refreshWeather;
 window.changeWeatherDate = changeWeatherDate;
 window.togglePanelSection = togglePanelSection;
 window.downloadEstimatePdf = downloadEstimatePdf;
+window.setYearFilter = setYearFilter;
+window.exportBoreholesExcel = exportBoreholesExcel;
+window.refreshMap = refreshMap;
 window.adminLogin = adminLogin;
 window.adminLogout = adminLogout;
 window.locateUser = locateUser;
@@ -2262,7 +2498,14 @@ function goToPlace(lat, lng, name, detail = "") {
     settlement: name,
     community: String(detail || "").split(",")[0].trim()
   });
-  renderPlaceStats({ name, placeName: name, community: String(detail || "").split(",")[0].trim() });
+  renderPlaceStats({
+    name,
+    placeName: name,
+    community: String(detail || "").split(",")[0].trim(),
+    label,
+    lat,
+    lng
+  });
   loadWeather(lat, lng, name);
 
   if (activeSearchMarker) {
