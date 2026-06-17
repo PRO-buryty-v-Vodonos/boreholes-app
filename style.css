@@ -143,6 +143,18 @@ html {
   overflow-y: auto;
 }
 
+#formPanel input.manual-place-label {
+  border-color: #2d89ef;
+  background: #f4f9ff;
+  box-shadow: 0 0 0 2px rgba(45, 137, 239, 0.12);
+}
+
+#formPanel input.manual-place-label:focus {
+  outline: none;
+  border-color: #1b73d8;
+  box-shadow: 0 0 0 3px rgba(45, 137, 239, 0.18);
+}
+
 /* =========================
    🔘 КНОПКИ
 ========================= */
@@ -325,6 +337,12 @@ body.dark #formPanel textarea {
   background: #46505c;
   color: #f4f7fb;
   border: 1px solid #657080;
+}
+
+body.dark #formPanel input.manual-place-label {
+  background: #3f536b;
+  border-color: #8fc4ff;
+  box-shadow: 0 0 0 2px rgba(143, 196, 255, 0.16);
 }
 
 body.dark .leaflet-popup-content-wrapper {

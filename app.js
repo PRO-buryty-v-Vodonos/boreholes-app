@@ -9,6 +9,26 @@ const POLTAVA_CENTER = {
 const POLTAVA_BOUNDARY_URL =
   "https://nominatim.openstreetmap.org/search?format=geojson&polygon_geojson=1&limit=1&countrycodes=ua&q=%D0%9F%D0%BE%D0%BB%D1%82%D0%B0%D0%B2%D1%81%D1%8C%D0%BA%D0%B0%20%D0%BE%D0%B1%D0%BB%D0%B0%D1%81%D1%82%D1%8C,%20%D0%A3%D0%BA%D1%80%D0%B0%D1%97%D0%BD%D0%B0";
 
+const MANUAL_PLACES = [
+  {
+    name: "Лукищина",
+    aliases: ["Лукищено", "Лукищена"],
+    community: "біля Головача",
+    placeType: "village",
+    lat: 49.4886,
+    lng: 34.5886
+  },
+  {
+    name: "Коломацьке",
+    aliases: ["Коломацьке дачі", "Коломацькому", "Коломацькі дачі"],
+    community: "Коломацька громада",
+    placeType: "village",
+    lat: 49.6111,
+    lng: 34.7689,
+    radiusKm: 4.5
+  }
+];
+
 let poltavaBoundaryLayer = null;
 
 // 🌍 базові шари
@@ -126,6 +146,39 @@ let userLocationMarker = null;
 let activeYearFilter = "all";
 const boreholeMarkers = new Map();
 const LOCAL_BOREHOLES_KEY = "boreholes-app:boreholes";
+const CITY_SETTLEMENTS = new Set([
+  "полтава",
+  "кременчук",
+  "горішні плавні",
+  "лубни",
+  "миргород",
+  "гадяч",
+  "глобине",
+  "гребінка",
+  "заводське",
+  "зіньків",
+  "карлівка",
+  "кобеляки",
+  "лохвиця",
+  "пирятин",
+  "решетилівка",
+  "хорол"
+]);
+const URBAN_SETTLEMENTS = new Set([
+  "велика багачка",
+  "градизьк",
+  "диканька",
+  "козельщина",
+  "котельва",
+  "машівка",
+  "нові санжари",
+  "опішня",
+  "оржиця",
+  "семенівка",
+  "чорнухи",
+  "чутове",
+  "шишаки"
+]);
 
 const boreholeIcon = L.divIcon({
   className: "borehole-marker",
@@ -227,6 +280,12 @@ function dedupeBoreholes(items) {
 }
 
 function normalizeBoreholePlaceDisplay(data) {
+  if (needsManualPlaceName(data)) {
+    data.placeName = "";
+    data.placeLabel = "";
+    return data;
+  }
+
   const visibleLabel = getVisiblePlaceLabel(data);
 
   if (visibleLabel) {
@@ -624,6 +683,8 @@ function refreshWeather() {
 }
 
 async function refreshMap() {
+  const nextZoom = Math.min(map.getZoom() + 1, map.getMaxZoom() || 20);
+  map.setZoom(nextZoom);
   map.invalidateSize();
   await loadPoltavaBoundary();
   await loadBoreholes();
@@ -768,6 +829,10 @@ function setAdminUI(user) {
   document.body.classList.toggle("admin-mode", isAdmin);
   document.body.classList.toggle("guest-mode", !isAdmin);
   updateAccessOverlay();
+
+  if (isAdmin) {
+    loadBoreholes();
+  }
 }
 
 function updateAccessOverlay() {
@@ -878,6 +943,19 @@ function getNumberFromText(value) {
   return match ? Number(match[0]) : 0;
 }
 
+function formatDecimalComma(value, digits = 2) {
+  const number = typeof value === "number" ? value : getNumberFromText(value);
+  if (!Number.isFinite(number)) return "";
+  return number.toFixed(digits).replace(".", ",");
+}
+
+function getExcelNumber(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const number = getNumberFromText(value);
+  return Number.isFinite(number) ? number : "";
+}
+
 function getFieldNumber(id) {
   const el = document.getElementById(id);
   return getNumberFromText(el ? el.value : "");
@@ -887,7 +965,7 @@ function formatDistanceField(value) {
   const number = getNumberFromText(value);
   return value === "" || value === null || value === undefined
     ? ""
-    : `${number.toFixed(2)} км, відстань від Полтави`;
+    : `${formatDecimalComma(number, 2)} км, відстань від Полтави`;
 }
 
 function formatElevationField(value) {
@@ -951,35 +1029,162 @@ function getPlaceKey(place) {
   ].map(normalizePlaceText).join("|");
 }
 
+function hasSettlementPrefix(value) {
+  return /^(м\.|с\.|с-ще|смт\.?)\s+/i.test(String(value || "").trim());
+}
+
+function stripSettlementPrefix(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^(м\.|с\.|с-ще|смт\.?)\s+/i, "")
+    .trim();
+}
+
+function getMainPlaceText(value) {
+  return stripSettlementPrefix(String(value || "").split("—")[0] || "");
+}
+
+function isCommunityOnlyName(value) {
+  const text = normalizePlaceText(getMainPlaceText(value));
+  if (!text) return false;
+
+  return text.includes("громад") ||
+    /\b(сільська|селищна|міська)\b/.test(text);
+}
+
+function needsManualPlaceName(place) {
+  if (place?.manualPlaceRequired) return true;
+
+  return isCommunityOnlyName(place?.placeName || place?.name || "") ||
+    isCommunityOnlyName(place?.placeLabel || place?.label || "");
+}
+
+function getSettlementKind(place, nameValue) {
+  const rawType = normalizePlaceText(place?.placeType || place?.type || "");
+  const name = normalizePlaceText(stripSettlementPrefix(nameValue || place?.placeName || place?.name || ""));
+
+  if (needsManualPlaceName({ ...place, placeName: nameValue || place?.placeName || place?.name || "" })) return "";
+  if (rawType === "city" || rawType === "town" || CITY_SETTLEMENTS.has(name)) return "city";
+  if (rawType === "suburb" || rawType === "neighbourhood" || rawType === "neighborhood") return "";
+  if (rawType === "village" || rawType === "hamlet") return "village";
+  if (rawType === "settlement" || rawType === "locality" || URBAN_SETTLEMENTS.has(name)) {
+    return "urban";
+  }
+
+  return name ? "village" : "";
+}
+
+function formatSettlementName(place, nameValue) {
+  const name = String(nameValue || place?.placeName || place?.name || "").trim();
+  if (!name || hasSettlementPrefix(name)) return name;
+
+  const kind = getSettlementKind(place, name);
+  if (kind === "city") return `м. ${name}`;
+  if (kind === "urban") return `с-ще ${name}`;
+  if (kind === "village") return `с. ${name}`;
+  return name;
+}
+
+function formatPlaceLabelWithPrefix(place) {
+  const rawLabel = String(place?.placeLabel || place?.label || "").trim();
+  const rawName = String(place?.placeName || place?.name || "").trim();
+  const source = rawLabel || rawName;
+  if (!source) return "";
+
+  const parts = source.split("—").map(part => part.trim()).filter(Boolean);
+  const namePart = parts[0] || rawName;
+  const formattedName = formatSettlementName(place, namePart);
+
+  return parts.length > 1
+    ? [formattedName, ...parts.slice(1)].join(" — ")
+    : formattedName;
+}
+
+function normalizeManualPlaceLabel(place, rawLabel) {
+  const label = String(rawLabel || "").trim();
+  if (!label) return "";
+
+  const placeWithLabel = {
+    ...place,
+    label,
+    placeLabel: label
+  };
+  const baseIsPoltava = isPoltavaCityPlace(placeWithLabel);
+
+  if (!baseIsPoltava) return label;
+  if (normalizePlaceText(label).includes("полтава")) return label;
+
+  const district = label.replace(/[()]/g, "").trim();
+  return district ? `м. Полтава (${district})` : "м. Полтава";
+}
+
 function getPlaceFromForm() {
-  return {
-    name: document.getElementById("placeName")?.value || "",
-    placeName: document.getElementById("placeName")?.value || "",
+  const rawPlaceName = document.getElementById("placeName")?.value || "";
+  const rawLabel = document.getElementById("placeLabel")?.value || "";
+  const place = {
+    name: rawPlaceName,
+    placeName: rawPlaceName,
     community: document.getElementById("community")?.value || "",
     district: document.getElementById("district")?.value || "",
-    label: document.getElementById("placeLabel")?.value || ""
+    label: rawLabel
+  };
+  const label = normalizeManualPlaceLabel(place, rawLabel);
+  const isPoltava = isPoltavaCityPlace({
+    ...place,
+    label,
+    placeLabel: label
+  });
+
+  return {
+    ...place,
+    name: rawPlaceName || (isPoltava ? "Полтава" : ""),
+    placeName: rawPlaceName || (isPoltava ? "Полтава" : ""),
+    label
   };
 }
 
 function setPlaceUI(place) {
   const safePlace = place || {};
-  const name = safePlace.placeName || safePlace.name || "";
+  const manualRequired = needsManualPlaceName(safePlace);
+  const name = manualRequired ? "" : safePlace.placeName || safePlace.name || "";
   const community = safePlace.community || "";
   const district = safePlace.district || "";
-  const label = getVisiblePlaceLabel({
-    ...safePlace,
-    name,
-    placeName: name,
-    community,
-    district
-  }) || safePlace.label || getPlaceLabel({ name, community, district });
+  const label = manualRequired
+    ? ""
+    : getVisiblePlaceLabel({
+      ...safePlace,
+      name,
+      placeName: name,
+      community,
+      district
+    }) || safePlace.label || getPlaceLabel({ name, community, district, placeType: safePlace.placeType });
 
   const placeLabel = document.getElementById("placeLabel");
   const placeName = document.getElementById("placeName");
   const communityInput = document.getElementById("community");
   const districtInput = document.getElementById("district");
 
-  if (placeLabel) placeLabel.value = label || "";
+  if (placeLabel) {
+    const editablePlace = {
+      ...safePlace,
+      name,
+      placeName: name,
+      community,
+      district,
+      label,
+      placeLabel: label
+    };
+    const canEditPlaceLabel = manualRequired || (Boolean(label) && isPoltavaCityPlace(editablePlace));
+
+    placeLabel.value = label || "";
+    placeLabel.readOnly = !canEditPlaceLabel;
+    placeLabel.classList.toggle("manual-place-label", canEditPlaceLabel);
+    placeLabel.title = canEditPlaceLabel
+      ? (manualRequired
+        ? "Впиши населений пункт вручну, наприклад: с. Новоселівка (дачі)"
+        : "Можна вручну дописати район: м. Полтава (Лісок)")
+      : "";
+  }
   if (placeName) placeName.value = name || "";
   if (communityInput) communityInput.value = community || "";
   if (districtInput) districtInput.value = district || "";
@@ -1003,8 +1208,8 @@ function rangeText(values) {
   const max = Math.max(...nums);
 
   return min === max
-    ? `${min.toFixed(1)} м`
-    : `${min.toFixed(1)}-${max.toFixed(1)} м`;
+    ? `${formatDecimalComma(min, 1)} м`
+    : `${formatDecimalComma(min, 1)}-${formatDecimalComma(max, 1)} м`;
 }
 
 function mostCommon(values) {
@@ -1024,17 +1229,14 @@ function getAreaStatsItems(place) {
   const lng = Number(place?.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
 
-  const halfKm = 1.5;
-  const lngKmFactor = 111.32 * Math.cos(lat * Math.PI / 180);
+  const radiusKm = 1;
 
   return boreholes.filter(item => {
     const itemLat = Number(item.lat);
     const itemLng = Number(item.lng);
     if (!Number.isFinite(itemLat) || !Number.isFinite(itemLng)) return false;
 
-    const northSouthKm = Math.abs(itemLat - lat) * 111.32;
-    const westEastKm = Math.abs(itemLng - lng) * lngKmFactor;
-    return northSouthKm <= halfKm && westEastKm <= halfKm;
+    return distanceKm(lat, lng, itemLat, itemLng) <= radiusKm;
   });
 }
 
@@ -1051,6 +1253,8 @@ function getAreaStats(place) {
 }
 
 function getAreaStatsLabel(place) {
+  if (needsManualPlaceName(place)) return "Обрана точка";
+
   const poltavaLabel = getPoltavaCityDisplayLabel(place);
   if (poltavaLabel) return poltavaLabel;
 
@@ -1179,7 +1383,7 @@ async function saveBorehole() {
   setDistanceUI(dist);
 
   let place = getPlaceFromForm();
-  if (!place.placeName) {
+  if (!place.placeName && !place.label) {
     try {
       place = await getPlaceByLatLng(currentLatLng.lat, currentLatLng.lng) || place;
       setPlaceUI(place);
@@ -1341,7 +1545,7 @@ function addMarker(data) {
     Глибина: ${data.depth} м<br>
     Рівень першої води: ${data.water} м<br>
     Висота над рівнем моря: ${data.elevation} м<br>
-    ${data.distance ? `📍 відстань від Полтави: ${Number(data.distance).toFixed(2)} км<br>` : ""}
+    ${data.distance ? `📍 відстань від Полтави: ${formatDecimalComma(data.distance, 2)} км<br>` : ""}
   `);
 }
 
@@ -1487,7 +1691,7 @@ async function updateBorehole() {
         Глибина: ${b.depth} м<br>
         Рівень першої води: ${b.water} м<br>
         Висота над рівнем моря: ${b.elevation} м<br>
-        📍 відстань від Полтави: ${b.distance} км<br>
+        📍 відстань від Полтави: ${formatDecimalComma(b.distance, 2)} км<br>
       `);
     }
 
@@ -1729,6 +1933,9 @@ function normalizePlaceText(value) {
   return String(value || "")
     .toLowerCase()
     .replace(/[’`]/g, "'")
+    .replace(/лукищен[оа]/g, "лукищина")
+    .replace(/коломацькому/g, "коломацьке")
+    .replace(/коломацькі дачі/g, "коломацьке дачі")
     .trim();
 }
 
@@ -1761,7 +1968,7 @@ function renderPlaceSuggestions(results, message) {
 
     const title = document.createElement("span");
     title.className = "suggestion-title";
-    title.textContent = place.name;
+    title.textContent = formatSettlementName(place, place.name);
     text.appendChild(title);
 
     const detail = getPlaceDetail(place);
@@ -1788,20 +1995,23 @@ function getPlaceLabel(place) {
   if (poltavaLabel) return poltavaLabel;
 
   const detail = getPlaceDetail(place);
-  return detail ? `${place.name} — ${detail}` : place.name;
+  const name = formatSettlementName(place, place?.placeName || place?.name || "");
+  if (!name) return detail || "";
+  return detail ? `${name} — ${detail}` : name;
 }
 
 function getStatsPlaceLabel(place) {
   const poltavaLabel = getPoltavaCityDisplayLabel(place);
   if (poltavaLabel) return poltavaLabel;
 
-  const name = place?.placeName || place?.name || "";
+  const name = formatSettlementName(place, place?.placeName || place?.name || "");
   const community = place?.community || "";
+  if (!name) return formatPlaceLabelWithPrefix(place) || community;
   return community ? `${name} — ${community}` : name;
 }
 
 function getVisiblePlaceLabel(place) {
-  return getPoltavaCityDisplayLabel(place) || getStatsPlaceLabel(place);
+  return getPoltavaCityDisplayLabel(place) || getStatsPlaceLabel(place) || formatPlaceLabelWithPrefix(place);
 }
 
 function getPlaceDetail(place) {
@@ -1898,12 +2108,37 @@ function uniquePlaces(places) {
   });
 }
 
+function distanceKm(lat1, lng1, lat2, lng2) {
+  const toRad = value => value * Math.PI / 180;
+  const earthRadiusKm = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) ** 2;
+
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getManualPlaceByLatLng(lat, lng) {
+  return MANUAL_PLACES
+    .filter(place => Number.isFinite(place.radiusKm))
+    .map(place => ({
+      ...place,
+      distance: distanceKm(lat, lng, place.lat, place.lng)
+    }))
+    .filter(place => place.distance <= place.radiusKm)
+    .sort((a, b) => a.distance - b.distance)[0] || null;
+}
+
 function localPlaceResults(q) {
   const query = normalizePlaceText(q);
 
   return PLACES
     .filter(place => [
       place.name,
+      Array.isArray(place.aliases) ? place.aliases.join(" ") : "",
       place.community,
       place.district,
       getPlaceLabel(place)
@@ -1924,18 +2159,30 @@ function isPoltavaRegionResult(place) {
 function getRemotePlaceName(place) {
   const address = place.address || {};
   const namedetails = place.namedetails || {};
-
-  return namedetails["name:uk"] ||
-    namedetails["official_name:uk"] ||
-    namedetails["alt_name:uk"] ||
-    address.city ||
+  const explicitSettlementName = address.city ||
     address.town ||
     address.village ||
     address.hamlet ||
     address.settlement ||
-    address.locality ||
-    place.name ||
-    String(place.display_name || "").split(",")[0];
+    address.locality;
+
+  if (explicitSettlementName) {
+    return namedetails["name:uk"] ||
+      namedetails["official_name:uk"] ||
+      namedetails["alt_name:uk"] ||
+      explicitSettlementName;
+  }
+
+  const remoteType = normalizePlaceText(place.type || "");
+  if (["city", "town", "village", "hamlet"].includes(remoteType)) {
+    return namedetails["name:uk"] ||
+      namedetails["official_name:uk"] ||
+      namedetails["alt_name:uk"] ||
+      place.name ||
+      "";
+  }
+
+  return "";
 }
 
 function getSearchNameCandidate(q) {
@@ -2040,14 +2287,28 @@ async function remotePlaceResults(q) {
         community: getRemoteCommunity(place),
         district: getRemoteDistrict(place),
         neighbourhood: getRemoteNeighbourhood(place),
+        placeType: place.type || place.address?.place || "",
         lat: Number(place.lat),
         lng: Number(place.lon)
       }))
-      .filter(place => place.name && !Number.isNaN(place.lat) && !Number.isNaN(place.lng))
+      .filter(place => place.name && !isCommunityOnlyName(place.name) && !Number.isNaN(place.lat) && !Number.isNaN(place.lng))
   );
 }
 
 async function getPlaceByLatLng(lat, lng) {
+  const manualPlace = getManualPlaceByLatLng(lat, lng);
+  if (manualPlace) {
+    return {
+      name: manualPlace.name,
+      placeName: manualPlace.name,
+      community: manualPlace.community || "",
+      district: "",
+      neighbourhood: "",
+      placeType: manualPlace.placeType || "",
+      label: getPlaceLabel(manualPlace)
+    };
+  }
+
   const params = new URLSearchParams({
     format: "jsonv2",
     addressdetails: "1",
@@ -2068,8 +2329,20 @@ async function getPlaceByLatLng(lat, lng) {
   const community = getRemoteCommunity(place);
   const district = getRemoteDistrict(place);
   const neighbourhood = getRemoteNeighbourhood(place);
+  const placeType = place.type || place.address?.place || "";
 
-  if (!name) return null;
+  if (!name || isCommunityOnlyName(name)) {
+    return {
+      name: "",
+      placeName: "",
+      community,
+      district,
+      neighbourhood,
+      placeType,
+      label: "",
+      manualPlaceRequired: true
+    };
+  }
 
   return {
     name,
@@ -2077,7 +2350,8 @@ async function getPlaceByLatLng(lat, lng) {
     community,
     district,
     neighbourhood,
-    label: getPlaceLabel({ name, community, district, neighbourhood })
+    placeType,
+    label: getPlaceLabel({ name, community, district, neighbourhood, placeType })
   };
 }
 
@@ -2101,19 +2375,22 @@ function searchCityPRO(q) {
 
   placeSearchTimer = setTimeout(async () => {
     try {
+      const localResults = localPlaceResults(query);
       const remoteResults = await remotePlaceResults(query);
       if (requestId !== placeSearchRequestId) return;
 
-      if (remoteResults.length) {
-        PLACES = uniquePlaces([...PLACES, ...remoteResults])
+      const combinedResults = uniquePlaces([...localResults, ...remoteResults]);
+
+      if (combinedResults.length) {
+        PLACES = uniquePlaces([...PLACES, ...combinedResults])
           .sort((a, b) => a.name.localeCompare(b.name, "uk"));
-        renderPlaceSuggestions(remoteResults);
+        renderPlaceSuggestions(combinedResults);
         return;
       }
 
       renderPlaceSuggestions(
-        localPlaceResults(query),
-        localPlaceResults(query).length ? "" : "Нічого не знайдено"
+        [],
+        "Нічого не знайдено"
       );
     } catch (e) {
       console.error("Помилка онлайн-пошуку населеного пункту:", e);
@@ -2265,6 +2542,21 @@ function excelSheet(name, rows) {
   `;
 }
 
+function setSheetNumberFormat(sheet, columns, format) {
+  if (!sheet["!ref"]) return;
+  const range = XLSX.utils.decode_range(sheet["!ref"]);
+
+  for (let row = 1; row <= range.e.r; row += 1) {
+    columns.forEach(col => {
+      const address = XLSX.utils.encode_cell({ r: row, c: col });
+      const cell = sheet[address];
+      if (cell && cell.t === "n") {
+        cell.z = format;
+      }
+    });
+  }
+}
+
 function exportBoreholesExcel() {
   if (!requireAdmin()) return;
 
@@ -2340,20 +2632,23 @@ function exportBoreholesExcel() {
       item.num,
       getBoreholeYear(item) || "-",
       getVisiblePlaceLabel(item) || item.placeLabel,
-      item.depth,
-      item.water,
+      getExcelNumber(item.depth),
+      getExcelNumber(item.water),
       item.soil,
-      item.elevation,
-      item.distance,
+      getExcelNumber(item.elevation),
+      getExcelNumber(item.distance),
       item.note,
-      item.lat,
-      item.lng
+      getExcelNumber(item.lat),
+      getExcelNumber(item.lng)
     ])
   ];
 
   const workbook = XLSX.utils.book_new();
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
   const detailSheet = XLSX.utils.aoa_to_sheet(detailRows);
+
+  setSheetNumberFormat(detailSheet, [3, 4, 6, 7], "0.00");
+  setSheetNumberFormat(detailSheet, [9, 10], "0.000000");
 
   summarySheet["!cols"] = [
     { wch: 12 },
@@ -2522,6 +2817,31 @@ async function testSave() {
   }
 }
 
+async function syncNormalizedFirebaseBoreholes(originalItems, normalizedItems) {
+  if (!isAdmin || !isFirebaseReady()) return;
+
+  const updates = normalizedItems
+    .map(item => {
+      const original = originalItems.find(source => source.id === item.id) || {};
+      return {
+        id: item.id,
+        patch: {
+          placeLabel: item.placeLabel || ""
+        },
+        changed: hasFirebaseId(item.id) && (original.placeLabel || "") !== (item.placeLabel || "")
+      };
+    })
+    .filter(item => item.changed && item.patch.placeLabel);
+
+  for (const item of updates) {
+    try {
+      await firebaseUpdateDoc(firebaseDoc(db, "boreholes", item.id), item.patch);
+    } catch (error) {
+      console.log("Place label sync error:", error);
+    }
+  }
+}
+
 async function loadBoreholes() {
   clearBoreholeMarkers();
   boreholes = loadLocalBoreholes();
@@ -2537,7 +2857,15 @@ async function loadBoreholes() {
         ...doc.data()
       }));
 
-      boreholes = dedupeBoreholes([...boreholes, ...firebaseBoreholes]).map(normalizeBoreholePlaceDisplay);
+      const normalizedFirebaseBoreholes = firebaseBoreholes.map(item =>
+        normalizeBoreholePlaceDisplay({ ...item })
+      );
+
+      if (isAdmin) {
+        await syncNormalizedFirebaseBoreholes(firebaseBoreholes, normalizedFirebaseBoreholes);
+      }
+
+      boreholes = dedupeBoreholes([...boreholes, ...normalizedFirebaseBoreholes]).map(normalizeBoreholePlaceDisplay);
       saveLocalBoreholes();
     } catch (e) {
       console.log("Firebase load error:", e);
@@ -2645,6 +2973,7 @@ async function loadPoltavaPlacesFromOSM() {
       return {
         name: getOSMName(tags),
         community: currentCommunity,
+        placeType: tags.place || "",
         lat: Number(center.lat),
         lng: Number(center.lon)
       };
@@ -2672,6 +3001,7 @@ async function loadPlaces() {
         .filter(f => f.geometry?.type === "Point")
         .map(f => ({
           name: f.properties.name,
+          placeType: f.properties.place || f.properties.type || "",
           lat: f.geometry.coordinates[1],
           lng: f.geometry.coordinates[0]
         }))
@@ -2694,6 +3024,8 @@ async function loadPlaces() {
   } catch(e) {
     console.error("ПОМИЛКА OSM:", e);
   } finally {
+    PLACES = uniquePlaces([...MANUAL_PLACES, ...PLACES])
+      .sort((a, b) => a.name.localeCompare(b.name, "uk"));
     placesReady = true;
   }
 }
@@ -2707,7 +3039,7 @@ function goToPlace(lat, lng, name, detail = "") {
   document.getElementById("suggestions").innerHTML = "";
   document.getElementById("suggestions").classList.remove("has-results");
 
-  map.setView([lat, lng], 13);
+  map.setView([lat, lng], 14);
   logAppEvent("settlement_search_select", {
     settlement: name,
     community: String(detail || "").split(",")[0].trim()
