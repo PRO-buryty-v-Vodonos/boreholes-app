@@ -24,8 +24,7 @@ const MANUAL_PLACES = [
     community: "Коломацька громада",
     placeType: "village",
     lat: 49.6111,
-    lng: 34.7689,
-    radiusKm: 4.5
+    lng: 34.7689
   }
 ];
 
@@ -1118,6 +1117,12 @@ function normalizeManualPlaceLabel(place, rawLabel) {
   return district ? `м. Полтава (${district})` : "м. Полтава";
 }
 
+function getPoltavaDistrictFromLabel(value) {
+  const label = String(value || "").trim();
+  const match = label.match(/(?:м\.\s*)?полтава\s*\(([^)]+)\)/i);
+  return match ? match[1].trim() : "";
+}
+
 function getPlaceFromForm() {
   const rawPlaceName = document.getElementById("placeName")?.value || "";
   const rawLabel = document.getElementById("placeLabel")?.value || "";
@@ -1134,11 +1139,13 @@ function getPlaceFromForm() {
     label,
     placeLabel: label
   });
+  const manualDistrict = isPoltava ? getPoltavaDistrictFromLabel(label) : "";
 
   return {
     ...place,
     name: rawPlaceName || (isPoltava ? "Полтава" : ""),
     placeName: rawPlaceName || (isPoltava ? "Полтава" : ""),
+    district: manualDistrict || place.district,
     label
   };
 }
@@ -1630,6 +1637,15 @@ function editBorehole(id){
   // ✅ ОЦЕ ВАЖЛИВО
   setElevationUI(borehole.elevation || "");
   setDistanceUI(borehole.distance || "");
+  setPlaceUI({
+    name: borehole.placeName || "",
+    placeName: borehole.placeName || "",
+    community: borehole.community || "",
+    district: borehole.district || "",
+    neighbourhood: borehole.neighbourhood || borehole.neighborhood || borehole.suburb || "",
+    label: borehole.placeLabel || "",
+    placeLabel: borehole.placeLabel || ""
+  });
 
   currentLatLng = {
     lat: borehole.lat,
@@ -1650,6 +1666,7 @@ async function updateBorehole() {
   let b = boreholes.find(x => x.id === selectedId);
   if (!b) return;
 
+  const place = getPlaceFromForm();
   const updatedData = {
     num: document.getElementById("num").value,
     depth: document.getElementById("depth").value,
@@ -1658,10 +1675,10 @@ async function updateBorehole() {
     note: document.getElementById("note").value,
     elevation: String(getFieldNumber("elevation")),
     distance: String(getFieldNumber("distance")),
-    placeName: getPlaceFromForm().placeName || "",
-    community: getPlaceFromForm().community || "",
-    district: getPlaceFromForm().district || "",
-    placeLabel: getPlaceFromForm().label || ""
+    placeName: place.placeName || "",
+    community: place.community || "",
+    district: place.district || "",
+    placeLabel: place.label || ""
   };
 
   try {
@@ -2088,6 +2105,13 @@ function isPoltavaCityPlace(place) {
 function getPoltavaCityDisplayLabel(place) {
   if (!place || !isPoltavaCityPlace(place)) return "";
 
+  const customDistrict =
+    getPoltavaDistrictFromLabel(place.placeLabel) ||
+    getPoltavaDistrictFromLabel(place.label);
+  if (customDistrict) {
+    return `м. Полтава (${customDistrict})`;
+  }
+
   const neighborhood = getPoltavaNeighborhood(place);
   return neighborhood ? `м. Полтава (${neighborhood})` : "м. Полтава";
 }
@@ -2119,17 +2143,6 @@ function distanceKm(lat1, lng1, lat2, lng2) {
     Math.sin(dLng / 2) ** 2;
 
   return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function getManualPlaceByLatLng(lat, lng) {
-  return MANUAL_PLACES
-    .filter(place => Number.isFinite(place.radiusKm))
-    .map(place => ({
-      ...place,
-      distance: distanceKm(lat, lng, place.lat, place.lng)
-    }))
-    .filter(place => place.distance <= place.radiusKm)
-    .sort((a, b) => a.distance - b.distance)[0] || null;
 }
 
 function localPlaceResults(q) {
@@ -2296,19 +2309,6 @@ async function remotePlaceResults(q) {
 }
 
 async function getPlaceByLatLng(lat, lng) {
-  const manualPlace = getManualPlaceByLatLng(lat, lng);
-  if (manualPlace) {
-    return {
-      name: manualPlace.name,
-      placeName: manualPlace.name,
-      community: manualPlace.community || "",
-      district: "",
-      neighbourhood: "",
-      placeType: manualPlace.placeType || "",
-      label: getPlaceLabel(manualPlace)
-    };
-  }
-
   const params = new URLSearchParams({
     format: "jsonv2",
     addressdetails: "1",
