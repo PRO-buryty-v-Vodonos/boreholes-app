@@ -2514,7 +2514,14 @@ function getSelectedPipeLabel() {
 }
 
 function money(value) {
-  return `${Number(value || 0).toFixed(2)} грн`;
+  const formatted = Number(value || 0)
+    .toLocaleString("uk-UA", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })
+    .replace(/[\u00a0\u202f]/g, " ");
+
+  return `${formatted} грн`;
 }
 
 function escapeExcelCell(value) {
@@ -2612,6 +2619,20 @@ function getExcelPlaceLabel(item) {
   }
 
   return label;
+}
+
+function getEstimatePlaceLabel(place) {
+  const baseLabel =
+    getExcelPlaceLabel(place) ||
+    String(document.getElementById("placeLabel")?.value || "").trim() ||
+    "-";
+  const community = String(place?.community || "").trim();
+
+  if (!community || normalizePlaceText(baseLabel).includes(normalizePlaceText(community))) {
+    return baseLabel;
+  }
+
+  return `${baseLabel} (${community})`;
 }
 
 function exportBoreholesExcel() {
@@ -2727,18 +2748,31 @@ function downloadEstimatePdf() {
 
   const num = document.getElementById("num").value || "-";
   const formPlace = getPlaceFromForm();
-  const place = getVisiblePlaceLabel(formPlace) || document.getElementById("placeLabel").value || "-";
-  const distance = document.getElementById("distance").value || "-";
+  const place = getEstimatePlaceLabel(formPlace);
+  const distanceKm = getFieldNumber("distance");
+  const distance = distanceKm ? `${formatDecimalComma(distanceKm, 2)} км` : "-";
   const date = new Date().toLocaleDateString("uk-UA");
-  const appUrl = window.location.origin + window.location.pathname;
+  const appUrl = "https://pro-buryty-v-vodonos.github.io/boreholes-app/";
   const youtubeUrl = "https://www.youtube.com/@PRO_buryty_v_vodonos";
+  const youtubeIcon = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 44">
+      <rect width="64" height="44" rx="10" fill="#ff0000"/>
+      <path d="M26 13l18 9-18 9z" fill="#ffffff"/>
+    </svg>
+  `;
 
   const docDefinition = {
     pageSize: "A4",
     pageMargins: [36, 36, 36, 36],
     content: [
       { text: "Кошторис буріння свердловини", style: "title" },
-      { text: `Дата: ${date}`, style: "muted" },
+      {
+        columns: [
+          { text: date, alignment: "left" },
+          { text: "м. Полтава", alignment: "right" }
+        ],
+        style: "documentMeta"
+      },
       {
         table: {
           widths: ["42%", "*"],
@@ -2763,21 +2797,51 @@ function downloadEstimatePdf() {
             ],
             ["Обсадна труба", `${depth} м`, getSelectedPipeLabel(), money(pipeCost)],
             ["Транспортні нарахування", "-", "-", money(transport)],
-            ["Фільтр", "-", "-", money(filter)],
+            ["Фільтр", "1 шт.", "-", money(filter)],
             ["", "", { text: "Разом", bold: true, alignment: "right" }, { text: money(total), bold: true, alignment: "right" }]
           ]
         },
         layout: "lightHorizontalLines"
       },
       { text: "Примітка: кошторис є попереднім і може уточнюватися після огляду місця робіт.", style: "note" },
-      { qr: appUrl, fit: 82, alignment: "center", margin: [0, 12, 0, 4] },
-      { text: "Відкрити додаток", alignment: "center", color: "#2d89ef", fontSize: 9, margin: [0, 0, 0, 8] },
-      { text: `YouTube: ${youtubeUrl}`, link: youtubeUrl, alignment: "center", color: "#2d89ef", fontSize: 10 }
+      {
+        columns: [
+          {
+            width: 220,
+            stack: [
+              { qr: appUrl, fit: 105, alignment: "left", margin: [0, 12, 0, 5] },
+              {
+                text: "Додаток для отримання наявної інформації пробурених свердловин по вашій місцевості",
+                link: appUrl,
+                alignment: "left",
+                color: "#2d89ef",
+                fontSize: 9,
+                lineHeight: 1.15
+              }
+            ]
+          },
+          {
+            width: "*",
+            stack: [
+              { svg: youtubeIcon, width: 58, alignment: "center", margin: [0, 27, 0, 7] },
+              {
+                text: "PRO_бурити в_Vodonos",
+                link: youtubeUrl,
+                alignment: "center",
+                color: "#2d89ef",
+                bold: true,
+                fontSize: 11
+              }
+            ]
+          }
+        ],
+        columnGap: 24
+      }
     ],
     styles: {
       title: { fontSize: 18, bold: true, alignment: "center", margin: [0, 0, 0, 8] },
       section: { fontSize: 13, bold: true, alignment: "center", margin: [0, 14, 0, 6] },
-      muted: { color: "#667085", alignment: "center", margin: [0, 0, 0, 8] },
+      documentMeta: { color: "#667085", margin: [0, 0, 0, 8] },
       note: { color: "#667085", fontSize: 10, margin: [0, 14, 0, 0] }
     },
     defaultStyle: {
