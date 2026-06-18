@@ -822,7 +822,7 @@ function setAdminUI(user) {
 
   const status = document.getElementById("authStatus");
   if (status) {
-    status.textContent = isAdmin ? `Адмін: ${user.email}` : "Гостьовий перегляд";
+    status.textContent = isAdmin ? "Адмін" : "Гостьовий перегляд";
   }
 
   document.body.classList.toggle("admin-mode", isAdmin);
