@@ -2552,9 +2552,46 @@ function setSheetNumberFormat(sheet, columns, format) {
       const cell = sheet[address];
       if (cell && cell.t === "n") {
         cell.z = format;
+        cell.s = cell.s || {};
+        cell.s.numFmt = format;
       }
     });
   }
+}
+
+function applyExcelTableStyle(sheet) {
+  if (!sheet["!ref"]) return;
+  const range = XLSX.utils.decode_range(sheet["!ref"]);
+  const baseStyle = {
+    font: {
+      name: "Arial",
+      sz: 11
+    },
+    alignment: {
+      horizontal: "center",
+      vertical: "center",
+      wrapText: true
+    }
+  };
+
+  for (let row = range.s.r; row <= range.e.r; row += 1) {
+    for (let col = range.s.c; col <= range.e.c; col += 1) {
+      const address = XLSX.utils.encode_cell({ r: row, c: col });
+      const cell = sheet[address];
+      if (!cell) continue;
+
+      cell.s = {
+        ...baseStyle,
+        font: { ...baseStyle.font },
+        alignment: { ...baseStyle.alignment }
+      };
+    }
+  }
+
+  sheet["!rows"] = Array.from(
+    { length: range.e.r + 1 },
+    (_, row) => ({ hpt: row === 0 ? 48.75 : 14.25 })
+  );
 }
 
 function escapeRegExp(value) {
@@ -2634,23 +2671,34 @@ function exportBoreholesExcel() {
   const workbook = XLSX.utils.book_new();
   const detailSheet = XLSX.utils.aoa_to_sheet(detailRows);
 
+  applyExcelTableStyle(detailSheet);
   setSheetNumberFormat(detailSheet, [4, 5, 7, 8], "0.00");
-  setSheetNumberFormat(detailSheet, [10, 11], "0.000000");
 
   detailSheet["!cols"] = [
-    { wch: 18 },
-    { wch: 10 },
-    { wch: 28 },
-    { wch: 32 },
-    { wch: 14 },
-    { wch: 20 },
-    { wch: 18 },
-    { wch: 12 },
-    { wch: 38 },
-    { wch: 34 },
-    { wch: 14 },
-    { wch: 14 }
+    { wch: 11.5 },
+    { wch: 9.375 },
+    { wch: 31 },
+    { wch: 31 },
+    { wch: 11.5 },
+    { wch: 12.875 },
+    { wch: 15.625 },
+    { wch: 10.5 },
+    { wch: 17.625 },
+    { wch: 30.25 },
+    { wch: 13 },
+    { wch: 13 }
   ];
+  detailSheet["!margins"] = {
+    left: 0.7,
+    right: 0.7,
+    top: 0.75,
+    bottom: 0.75,
+    header: 0,
+    footer: 0
+  };
+  detailSheet["!pageSetup"] = {
+    orientation: "landscape"
+  };
 
   XLSX.utils.book_append_sheet(workbook, detailSheet, "Свердловини");
   const yearSuffix = activeYearFilter === "all" ? "usi_roky" : activeYearFilter;
