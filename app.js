@@ -2557,6 +2557,26 @@ function setSheetNumberFormat(sheet, columns, format) {
   }
 }
 
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getExcelPlaceLabel(item) {
+  const poltavaLabel = getPoltavaCityDisplayLabel(item);
+  if (poltavaLabel) return poltavaLabel;
+
+  const name = String(item?.placeName || item?.name || "").trim();
+  if (name) return formatSettlementName(item, name);
+
+  const label = String(item?.placeLabel || item?.label || "").trim();
+  const community = String(item?.community || "").trim();
+  if (label && community) {
+    return label.replace(new RegExp(`\\s*—\\s*${escapeRegExp(community)}\\s*$`, "i"), "").trim();
+  }
+
+  return label;
+}
+
 function exportBoreholesExcel() {
   if (!requireAdmin()) return;
 
@@ -2580,50 +2600,17 @@ function exportBoreholesExcel() {
     return;
   }
 
-  const years = Array.from(new Set(items.map(getBoreholeYear).filter(Boolean)))
-    .sort((a, b) => Number(b) - Number(a));
-
-  const summaryRows = [[
-    "Рік",
-    "Кількість",
-    "Глибина від-до",
-    "Рівень 1-ї води від-до",
-    "Найчастіший ґрунт"
-  ]
-  ];
-
-  years.forEach(year => {
-    const yearItems = items.filter(item => getBoreholeYear(item) === year);
-    summaryRows.push([
-      year,
-      yearItems.length,
-      rangeText(yearItems.map(item => item.depth)),
-      rangeText(yearItems.map(item => item.water)),
-      mostCommon(yearItems.map(item => item.soil))
-    ]);
-  });
-
-  const unknownYearItems = items.filter(item => !getBoreholeYear(item));
-  if (unknownYearItems.length) {
-    summaryRows.push([
-      "Без року",
-      unknownYearItems.length,
-      rangeText(unknownYearItems.map(item => item.depth)),
-      rangeText(unknownYearItems.map(item => item.water)),
-      mostCommon(unknownYearItems.map(item => item.soil))
-    ]);
-  }
-
   const detailRows = [
     [
       "№ свердловини",
       "Рік",
       "Місцевість",
-      "Глибина, м",
-      "Рівень 1-ї води, м",
+      "Громада",
+      "Глибина, (м)",
+      "Рівень 1-ї води, (м)",
       "Ґрунт",
-      "Висота, м",
-      "Відстань від Полтави до місця буріння, км",
+      "Висота над рівнем моря, (м)",
+      "Відстань від Полтави до місця буріння, (км)",
       "Примітка",
       "Широта",
       "Довгота"
@@ -2631,7 +2618,8 @@ function exportBoreholesExcel() {
     ...items.map(item => [
       item.num,
       getBoreholeYear(item) || "-",
-      getVisiblePlaceLabel(item) || item.placeLabel,
+      getExcelPlaceLabel(item),
+      item.community || "",
       getExcelNumber(item.depth),
       getExcelNumber(item.water),
       item.soil,
@@ -2644,24 +2632,16 @@ function exportBoreholesExcel() {
   ];
 
   const workbook = XLSX.utils.book_new();
-  const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
   const detailSheet = XLSX.utils.aoa_to_sheet(detailRows);
 
-  setSheetNumberFormat(detailSheet, [3, 4, 6, 7], "0.00");
-  setSheetNumberFormat(detailSheet, [9, 10], "0.000000");
-
-  summarySheet["!cols"] = [
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 18 },
-    { wch: 24 },
-    { wch: 22 }
-  ];
+  setSheetNumberFormat(detailSheet, [4, 5, 7, 8], "0.00");
+  setSheetNumberFormat(detailSheet, [10, 11], "0.000000");
 
   detailSheet["!cols"] = [
     { wch: 18 },
     { wch: 10 },
-    { wch: 34 },
+    { wch: 28 },
+    { wch: 32 },
     { wch: 14 },
     { wch: 20 },
     { wch: 18 },
@@ -2672,7 +2652,6 @@ function exportBoreholesExcel() {
     { wch: 14 }
   ];
 
-  XLSX.utils.book_append_sheet(workbook, summarySheet, "Динаміка");
   XLSX.utils.book_append_sheet(workbook, detailSheet, "Свердловини");
   const yearSuffix = activeYearFilter === "all" ? "usi_roky" : activeYearFilter;
   XLSX.writeFile(workbook, `sverdlovyny_${yearSuffix}_${new Date().toISOString().slice(0, 10)}.xlsx`);
