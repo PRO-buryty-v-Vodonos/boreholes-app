@@ -1040,7 +1040,12 @@ function stripSettlementPrefix(value) {
 }
 
 function getMainPlaceText(value) {
-  return stripSettlementPrefix(String(value || "").split("—")[0] || "");
+  const mainText = String(value || "")
+    .split("—")[0]
+    .replace(/\s*\([^)]*\)\s*$/, "")
+    .trim();
+
+  return stripSettlementPrefix(mainText);
 }
 
 function isCommunityOnlyName(value) {
@@ -1095,7 +1100,7 @@ function formatPlaceLabelWithPrefix(place) {
   const formattedName = formatSettlementName(place, namePart);
 
   return parts.length > 1
-    ? [formattedName, ...parts.slice(1)].join(" — ")
+    ? `${formattedName} (${parts.slice(1).join(", ")})`
     : formattedName;
 }
 
@@ -1985,23 +1990,17 @@ function renderPlaceSuggestions(results, message) {
 
     const title = document.createElement("span");
     title.className = "suggestion-title";
-    title.textContent = formatSettlementName(place, place.name);
+    title.textContent = getPlaceLabel(place);
     text.appendChild(title);
 
     const detail = getPlaceDetail(place);
-    if (detail) {
-      const subtitle = document.createElement("span");
-      subtitle.className = "suggestion-subtitle";
-      subtitle.textContent = detail;
-      text.appendChild(subtitle);
-    }
 
     item.appendChild(text);
 
     item.addEventListener("click", () => {
       setPlaceUI(place);
       renderPlaceStats(place);
-      goToPlace(place.lat, place.lng, place.name, detail);
+      goToPlace(place.lat, place.lng, formatSettlementName(place, place.name), detail);
     });
     box.appendChild(item);
   });
@@ -2014,7 +2013,7 @@ function getPlaceLabel(place) {
   const detail = getPlaceDetail(place);
   const name = formatSettlementName(place, place?.placeName || place?.name || "");
   if (!name) return detail || "";
-  return detail ? `${name} — ${detail}` : name;
+  return detail ? `${name} (${detail})` : name;
 }
 
 function getStatsPlaceLabel(place) {
@@ -2024,7 +2023,7 @@ function getStatsPlaceLabel(place) {
   const name = formatSettlementName(place, place?.placeName || place?.name || "");
   const community = place?.community || "";
   if (!name) return formatPlaceLabelWithPrefix(place) || community;
-  return community ? `${name} — ${community}` : name;
+  return community ? `${name} (${community})` : name;
 }
 
 function getVisiblePlaceLabel(place) {
@@ -3155,7 +3154,7 @@ async function loadPlaces() {
 window.addEventListener("load", loadPlaces);
 
 function goToPlace(lat, lng, name, detail = "") {
-  const label = detail ? `${name} — ${detail}` : name;
+  const label = detail ? `${name} (${detail})` : name;
 
   document.getElementById("searchCity").value = label;
   document.getElementById("suggestions").innerHTML = "";
