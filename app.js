@@ -2509,8 +2509,8 @@ function getSelectedPipeLabel() {
   const selected = document.querySelector('input[name="pipeType"]:checked');
   if (!selected) return "-";
 
-  const item = selected.closest(".radio-item");
-  return item ? item.textContent.replace(/\s+/g, " ").trim() : `${selected.value} грн/м`;
+  const pipeName = selected.closest(".radio-item")?.querySelector(".pipe-name")?.textContent.trim();
+  return pipeName || "-";
 }
 
 function money(value) {
@@ -2754,10 +2754,17 @@ function downloadEstimatePdf() {
   const date = new Date().toLocaleDateString("uk-UA");
   const appUrl = "https://pro-buryty-v-vodonos.github.io/boreholes-app/";
   const youtubeUrl = "https://www.youtube.com/@PRO_buryty_v_vodonos";
+  const telegramUrl = "https://t.me/PRO_buryty_v_Vodonos";
   const youtubeIcon = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 44">
       <rect width="64" height="44" rx="10" fill="#ff0000"/>
       <path d="M26 13l18 9-18 9z" fill="#ffffff"/>
+    </svg>
+  `;
+  const telegramIcon = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="24" fill="#229ed9"/>
+      <path d="M11 23.2l25-9.7c1.2-.4 2.2.3 1.8 2l-4.3 20.1c-.3 1.4-1.2 1.8-2.4 1.1l-6.5-4.8-3.1 3c-.4.4-.7.7-1.4.7l.5-6.6 12-10.9c.5-.5-.1-.7-.8-.3L17 27.1l-6.4-2c-1.4-.5-1.4-1.4.4-2z" fill="#fff"/>
     </svg>
   `;
 
@@ -2792,10 +2799,20 @@ function downloadEstimatePdf() {
             [
               { text: "Позиція", bold: true },
               { text: "К-сть", bold: true },
-              { text: "Ціна", bold: true },
+              { text: "Ціна за метр", bold: true },
               { text: "Сума", bold: true }
             ],
-            ["Обсадна труба", `${depth} м`, getSelectedPipeLabel(), money(pipeCost)],
+            [
+              {
+                stack: [
+                  { text: "Вартість буріння" },
+                  { text: `(${getSelectedPipeLabel()})`, fontSize: 9, color: "#667085" }
+                ]
+              },
+              `${depth} м`,
+              money(pipePrice),
+              money(pipeCost)
+            ],
             ["Транспортні нарахування", "-", "-", money(transport)],
             ["Фільтр", "1 шт.", "-", money(filter)],
             ["", "", { text: "Разом", bold: true, alignment: "right" }, { text: money(total), bold: true, alignment: "right" }]
@@ -2807,13 +2824,13 @@ function downloadEstimatePdf() {
       {
         columns: [
           {
-            width: 220,
+            width: "*",
             stack: [
-              { qr: appUrl, fit: 105, alignment: "left", margin: [0, 12, 0, 5] },
+              { qr: appUrl, fit: 105, alignment: "center", margin: [0, 12, 0, 5] },
               {
                 text: "Додаток для отримання наявної інформації пробурених свердловин по вашій місцевості",
                 link: appUrl,
-                alignment: "left",
+                alignment: "center",
                 color: "#2d89ef",
                 fontSize: 9,
                 lineHeight: 1.15
@@ -2833,9 +2850,23 @@ function downloadEstimatePdf() {
                 fontSize: 11
               }
             ]
+          },
+          {
+            width: "*",
+            stack: [
+              { svg: telegramIcon, width: 48, alignment: "center", margin: [0, 25, 0, 7] },
+              {
+                text: "@PRO_бурити в_Vodonos",
+                link: telegramUrl,
+                alignment: "center",
+                color: "#229ed9",
+                bold: true,
+                fontSize: 10
+              }
+            ]
           }
         ],
-        columnGap: 24
+        columnGap: 14
       }
     ],
     styles: {
