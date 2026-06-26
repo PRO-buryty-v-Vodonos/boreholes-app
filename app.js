@@ -807,11 +807,12 @@ function refreshWeather() {
 }
 
 async function refreshMap() {
-  const nextZoom = Math.min(map.getZoom() + 1, map.getMaxZoom() || 20);
-  map.setZoom(nextZoom);
+  const center = map.getCenter();
+  const zoom = map.getZoom();
   map.invalidateSize();
   await loadPoltavaBoundary();
   await loadBoreholes();
+  map.setView(center, zoom, { animate: false });
   refreshWeather();
 }
 
