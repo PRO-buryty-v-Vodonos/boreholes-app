@@ -463,16 +463,10 @@ function refreshYearFilterOptions() {
 
   select.innerHTML = '<option value="all">Всі роки</option>';
 
-  if (boreholes.some(item => {
+  const hasBefore2022 = boreholes.some(item => {
     const year = getBoreholeYear(item);
     return year === "before-2022" || (year && Number(year) < 2022);
-  })) {
-    const option = document.createElement("option");
-    option.value = "before-2022";
-    option.textContent = "до 2022";
-    select.appendChild(option);
-    filterOptions.push({ value: "before-2022", label: "до 2022" });
-  }
+  });
 
   years.forEach(year => {
     const option = document.createElement("option");
@@ -481,6 +475,14 @@ function refreshYearFilterOptions() {
     select.appendChild(option);
     filterOptions.push({ value: year, label: year });
   });
+
+  if (hasBefore2022) {
+    const option = document.createElement("option");
+    option.value = "before-2022";
+    option.textContent = "до 2022";
+    select.appendChild(option);
+    filterOptions.push({ value: "before-2022", label: "до 2022" });
+  }
 
   activeYearFilter =
     current === "before-2022" || (current !== "all" && years.includes(current))
