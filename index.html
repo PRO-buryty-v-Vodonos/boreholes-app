@@ -15,7 +15,7 @@
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
-  <link rel="stylesheet" href="style.css?v=20260626-15" />
+  <link rel="stylesheet" href="style.css?v=20260626-16" />
 </head>
 <body>
    <div id="searchBox">
@@ -329,15 +329,20 @@
 
   <div class="admin-tools">
     <div class="borehole-filter">
-      <label for="yearFilter">Фільтр по року</label>
-      <div class="borehole-filter-row">
-        <select id="yearFilter" onchange="setYearFilter(this.value)">
-          <option value="all">Всі роки</option>
-        </select>
-        <div class="year-filter-custom">
-          <div id="yearFilterMenu" class="year-filter-menu" aria-label="Фільтр по року"></div>
+      <button class="borehole-filter-toggle collapsible-toggle" type="button" onclick="togglePanelSection('yearFilterBody', this)" aria-expanded="true">
+        Фільтр по року
+        <span class="collapse-indicator" aria-hidden="true">⌄</span>
+      </button>
+      <div id="yearFilterBody" class="borehole-filter-body collapsible-content">
+        <div class="borehole-filter-row">
+          <select id="yearFilter" onchange="setYearFilter(this.value)">
+            <option value="all">Всі роки</option>
+          </select>
+          <div class="year-filter-custom">
+            <div id="yearFilterMenu" class="year-filter-menu" aria-label="Фільтр по року"></div>
+          </div>
+          <span id="yearFilterCount">0 свердловин</span>
         </div>
-        <span id="yearFilterCount">0 свердловин</span>
       </div>
     </div>
 
@@ -354,7 +359,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
-<script src="app.js?v=20260626-15"></script>
+<script src="app.js?v=20260626-16"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";

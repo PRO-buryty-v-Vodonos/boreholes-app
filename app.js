@@ -941,6 +941,11 @@ function initMobileCollapsibleSections() {
     document.querySelector("[onclick*='weatherBox']"),
     true
   );
+  setPanelSectionCollapsed(
+    "yearFilterBody",
+    document.querySelector("[onclick*='yearFilterBody']"),
+    true
+  );
 }
 
 function isFirebaseReady() {
