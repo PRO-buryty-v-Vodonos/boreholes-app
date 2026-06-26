@@ -412,37 +412,21 @@ function getYearFilterLabel(value) {
   return value || "Всі роки";
 }
 
-function closeYearFilterMenu() {
-  document.getElementById("yearFilterMenu")?.classList.remove("open");
-  document.getElementById("yearFilterButton")?.classList.remove("open");
-}
-
-function toggleYearFilterMenu() {
-  const menu = document.getElementById("yearFilterMenu");
-  const button = document.getElementById("yearFilterButton");
-  if (!menu || !button) return;
-
-  const isOpen = menu.classList.toggle("open");
-  button.classList.toggle("open", isOpen);
-}
-
 function renderYearFilterMenu(options) {
   const menu = document.getElementById("yearFilterMenu");
-  const button = document.getElementById("yearFilterButton");
-  if (!menu || !button) return;
+  if (!menu) return;
 
   menu.innerHTML = "";
-  button.textContent = getYearFilterLabel(activeYearFilter);
 
   options.forEach(option => {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "year-filter-option";
+    item.dataset.value = option.value;
     item.classList.toggle("active", option.value === activeYearFilter);
     item.textContent = option.label;
     item.addEventListener("click", () => {
       setYearFilter(option.value);
-      closeYearFilterMenu();
     });
     menu.appendChild(item);
   });
@@ -497,18 +481,11 @@ function setYearFilter(year) {
   activeYearFilter = year || "all";
   const select = document.getElementById("yearFilter");
   if (select) select.value = activeYearFilter;
-  const button = document.getElementById("yearFilterButton");
-  if (button) button.textContent = getYearFilterLabel(activeYearFilter);
   document.querySelectorAll(".year-filter-option").forEach(option => {
-    option.classList.toggle("active", option.textContent === getYearFilterLabel(activeYearFilter));
+    option.classList.toggle("active", option.dataset.value === activeYearFilter);
   });
   applyYearFilter();
 }
-
-document.addEventListener("click", event => {
-  const filter = event.target.closest?.(".year-filter-custom");
-  if (!filter) closeYearFilterMenu();
-});
 
 function removeTempPoint() {
   if (!window.tempMarker) return;
@@ -3215,7 +3192,6 @@ window.changeWeatherDate = changeWeatherDate;
 window.togglePanelSection = togglePanelSection;
 window.downloadEstimatePdf = downloadEstimatePdf;
 window.setYearFilter = setYearFilter;
-window.toggleYearFilterMenu = toggleYearFilterMenu;
 window.exportBoreholesExcel = exportBoreholesExcel;
 window.refreshMap = refreshMap;
 window.adminLogin = adminLogin;
