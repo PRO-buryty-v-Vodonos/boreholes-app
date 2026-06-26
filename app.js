@@ -143,6 +143,7 @@ let isAdmin = false;
 let accessClosed = false;
 let userLocationMarker = null;
 let activeYearFilter = "all";
+let installPromptEvent = null;
 const boreholeMarkers = new Map();
 const LOCAL_BOREHOLES_KEY = "boreholes-app:boreholes";
 const CITY_SETTLEMENTS = new Set([
@@ -179,17 +180,67 @@ const URBAN_SETTLEMENTS = new Set([
   "шишаки"
 ]);
 
-const boreholeIcon = L.divIcon({
+const ADMIN_MARKER_COLORS = [
+  "#2d89ef",
+  "#e63946",
+  "#2a9d8f",
+  "#f4a261",
+  "#7c3aed"
+];
+
+function getCurrentAdminUser() {
+  return window.firebaseAuth?.currentUser || null;
+}
+
+function getCurrentAdminEmail() {
+  return getCurrentAdminUser()?.email || "";
+}
+
+function getCurrentAdminUid() {
+  return getCurrentAdminUser()?.uid || "";
+}
+
+function getAdminColorIndex(value) {
+  const text = normalizePlaceText(value);
+  if (!text) return 0;
+
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+  }
+
+  return Math.abs(hash) % ADMIN_MARKER_COLORS.length;
+}
+
+function getBoreholeAdminKey(data) {
+  return data?.createdByEmail ||
+    data?.createdBy ||
+    data?.adminEmail ||
+    data?.updatedByEmail ||
+    "";
+}
+
+function getBoreholeMarkerColor(data) {
+  const adminKey = getBoreholeAdminKey(data);
+  return adminKey
+    ? ADMIN_MARKER_COLORS[getAdminColorIndex(adminKey)]
+    : ADMIN_MARKER_COLORS[0];
+}
+
+function createBoreholeIcon(data = {}) {
+  const color = getBoreholeMarkerColor(data);
+  return L.divIcon({
   className: "borehole-marker",
   html: `
-    <span class="borehole-pin">
+    <span class="borehole-pin" style="--marker-color: ${color};">
       <span class="borehole-pin-core"></span>
     </span>
   `,
-  iconSize: [28, 36],
-  iconAnchor: [14, 34],
+  iconSize: [24, 32],
+  iconAnchor: [12, 30],
   popupAnchor: [0, -32]
-});
+  });
+}
 
 const tempBoreholeIcon = L.divIcon({
   className: "temp-borehole-marker",
@@ -207,8 +258,17 @@ function getBoreholeMarkerId(data) {
 }
 
 function getBoreholeYear(data) {
+  const text = normalizePlaceText(data?.num || "");
+  if (/\/\s*до\s*2022\b/.test(text) || /\bдо\s*2022\b/.test(text)) {
+    return "before-2022";
+  }
+
   const match = String(data?.num || "").match(/\/\s*((?:19|20)\d{2})\b/);
   return match ? match[1] : "";
+}
+
+function getBoreholeYearLabel(year) {
+  return year === "before-2022" ? "до 2022" : year;
 }
 
 function getBoreholeDuplicateKey(data) {
@@ -294,12 +354,23 @@ function normalizeBoreholePlaceDisplay(data) {
   return data;
 }
 
+function matchesYearFilter(item, year = activeYearFilter) {
+  if (year === "all") return true;
+
+  const itemYear = getBoreholeYear(item);
+  if (year === "before-2022") {
+    return itemYear === "before-2022" || (itemYear && Number(itemYear) < 2022);
+  }
+
+  return itemYear === year;
+}
+
 function getBoreholesByYear(year = activeYearFilter) {
-  return boreholes.filter(item => year === "all" || getBoreholeYear(item) === year);
+  return boreholes.filter(item => matchesYearFilter(item, year));
 }
 
 function shouldShowBorehole(data) {
-  return activeYearFilter === "all" || getBoreholeYear(data) === activeYearFilter;
+  return matchesYearFilter(data);
 }
 
 function clearBoreholeMarkers() {
@@ -335,32 +406,107 @@ function updateYearFilterCount() {
   countEl.textContent = `${count} ${count === 1 ? "свердловина" : "свердловин"}`;
 }
 
+function getYearFilterLabel(value) {
+  if (value === "all") return "Всі роки";
+  if (value === "before-2022") return "до 2022";
+  return value || "Всі роки";
+}
+
+function closeYearFilterMenu() {
+  document.getElementById("yearFilterMenu")?.classList.remove("open");
+  document.getElementById("yearFilterButton")?.classList.remove("open");
+}
+
+function toggleYearFilterMenu() {
+  const menu = document.getElementById("yearFilterMenu");
+  const button = document.getElementById("yearFilterButton");
+  if (!menu || !button) return;
+
+  const isOpen = menu.classList.toggle("open");
+  button.classList.toggle("open", isOpen);
+}
+
+function renderYearFilterMenu(options) {
+  const menu = document.getElementById("yearFilterMenu");
+  const button = document.getElementById("yearFilterButton");
+  if (!menu || !button) return;
+
+  menu.innerHTML = "";
+  button.textContent = getYearFilterLabel(activeYearFilter);
+
+  options.forEach(option => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "year-filter-option";
+    item.classList.toggle("active", option.value === activeYearFilter);
+    item.textContent = option.label;
+    item.addEventListener("click", () => {
+      setYearFilter(option.value);
+      closeYearFilterMenu();
+    });
+    menu.appendChild(item);
+  });
+}
+
 function refreshYearFilterOptions() {
   const select = document.getElementById("yearFilter");
   if (!select) return;
 
   const current = activeYearFilter;
   const years = Array.from(new Set(boreholes.map(getBoreholeYear).filter(Boolean)))
+    .filter(year => year !== "before-2022")
     .sort((a, b) => Number(b) - Number(a));
 
+  const filterOptions = [
+    { value: "all", label: "Всі роки" }
+  ];
+
   select.innerHTML = '<option value="all">Всі роки</option>';
+
+  if (boreholes.some(item => {
+    const year = getBoreholeYear(item);
+    return year === "before-2022" || (year && Number(year) < 2022);
+  })) {
+    const option = document.createElement("option");
+    option.value = "before-2022";
+    option.textContent = "до 2022";
+    select.appendChild(option);
+    filterOptions.push({ value: "before-2022", label: "до 2022" });
+  }
 
   years.forEach(year => {
     const option = document.createElement("option");
     option.value = year;
     option.textContent = year;
     select.appendChild(option);
+    filterOptions.push({ value: year, label: year });
   });
 
-  activeYearFilter = current !== "all" && years.includes(current) ? current : "all";
+  activeYearFilter =
+    current === "before-2022" || (current !== "all" && years.includes(current))
+      ? current
+      : "all";
   select.value = activeYearFilter;
+  renderYearFilterMenu(filterOptions);
   updateYearFilterCount();
 }
 
 function setYearFilter(year) {
   activeYearFilter = year || "all";
+  const select = document.getElementById("yearFilter");
+  if (select) select.value = activeYearFilter;
+  const button = document.getElementById("yearFilterButton");
+  if (button) button.textContent = getYearFilterLabel(activeYearFilter);
+  document.querySelectorAll(".year-filter-option").forEach(option => {
+    option.classList.toggle("active", option.textContent === getYearFilterLabel(activeYearFilter));
+  });
   applyYearFilter();
 }
+
+document.addEventListener("click", event => {
+  const filter = event.target.closest?.(".year-filter-custom");
+  if (!filter) closeYearFilterMenu();
+});
 
 function removeTempPoint() {
   if (!window.tempMarker) return;
@@ -749,6 +895,30 @@ function registerPWA() {
     refreshedByServiceWorker = true;
     window.location.reload();
   });
+}
+
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault();
+  installPromptEvent = event;
+});
+
+window.addEventListener("appinstalled", () => {
+  installPromptEvent = null;
+});
+
+async function installApp() {
+  if (installPromptEvent) {
+    installPromptEvent.prompt();
+    await installPromptEvent.userChoice;
+    installPromptEvent = null;
+    return;
+  }
+
+  alert(
+    "Щоб встановити додаток на телефон:\n\n" +
+    "Android Chrome: відкрий меню ⋮ і натисни «Додати на головний екран» або «Встановити додаток».\n\n" +
+    "iPhone Safari: натисни «Поділитися» і вибери «На початковий екран»."
+  );
 }
 
 function logAppEvent(name, params = {}) {
@@ -1419,7 +1589,12 @@ async function saveBorehole() {
     placeLabel: place.label || getPlaceLabel(place),
     lat: currentLatLng.lat,
     lng: currentLatLng.lng,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    createdByEmail: getCurrentAdminEmail(),
+    createdByUid: getCurrentAdminUid(),
+    updatedByEmail: getCurrentAdminEmail(),
+    updatedByUid: getCurrentAdminUid(),
+    updatedAt: Date.now()
   };
 
   try {
@@ -1478,7 +1653,7 @@ function addMarker(data) {
     map.removeLayer(existing.marker);
   }
 
-  const marker = L.marker([data.lat, data.lng], { icon: boreholeIcon });
+  const marker = L.marker([data.lat, data.lng], { icon: createBoreholeIcon(data) });
   boreholeMarkers.set(markerId, { marker, data });
 
   if (shouldShowBorehole(data)) {
@@ -1683,7 +1858,12 @@ async function updateBorehole() {
     placeName: place.placeName || "",
     community: place.community || "",
     district: place.district || "",
-    placeLabel: place.label || ""
+    placeLabel: place.label || "",
+    createdByEmail: b.createdByEmail || getCurrentAdminEmail(),
+    createdByUid: b.createdByUid || getCurrentAdminUid(),
+    updatedByEmail: getCurrentAdminEmail(),
+    updatedByUid: getCurrentAdminUid(),
+    updatedAt: Date.now()
   };
 
   try {
@@ -1700,6 +1880,7 @@ async function updateBorehole() {
     const storedMarker = boreholeMarkers.get(selectedId);
     if (storedMarker) {
       storedMarker.data = b;
+      storedMarker.marker.setIcon(createBoreholeIcon(b));
     }
     refreshYearFilterOptions();
     applyYearFilter();
@@ -1727,6 +1908,7 @@ async function updateBorehole() {
     const storedMarker = boreholeMarkers.get(selectedId);
     if (storedMarker) {
       storedMarker.data = b;
+      storedMarker.marker.setIcon(createBoreholeIcon(b));
     }
     refreshYearFilterOptions();
     applyYearFilter();
@@ -2674,7 +2856,7 @@ function exportBoreholesExcel() {
     ],
     ...items.map(item => [
       item.num,
-      getBoreholeYear(item) || "-",
+      getBoreholeYearLabel(getBoreholeYear(item)) || "-",
       getExcelPlaceLabel(item),
       item.community || "",
       getExcelNumber(item.depth),
@@ -2721,7 +2903,9 @@ function exportBoreholesExcel() {
   };
 
   XLSX.utils.book_append_sheet(workbook, detailSheet, "Свердловини");
-  const yearSuffix = activeYearFilter === "all" ? "usi_roky" : activeYearFilter;
+  const yearSuffix = activeYearFilter === "all"
+    ? "usi_roky"
+    : (activeYearFilter === "before-2022" ? "do_2022" : activeYearFilter);
   XLSX.writeFile(workbook, `sverdlovyny_${yearSuffix}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
@@ -3029,11 +3213,13 @@ window.changeWeatherDate = changeWeatherDate;
 window.togglePanelSection = togglePanelSection;
 window.downloadEstimatePdf = downloadEstimatePdf;
 window.setYearFilter = setYearFilter;
+window.toggleYearFilterMenu = toggleYearFilterMenu;
 window.exportBoreholesExcel = exportBoreholesExcel;
 window.refreshMap = refreshMap;
 window.adminLogin = adminLogin;
 window.adminLogout = adminLogout;
 window.locateUser = locateUser;
+window.installApp = installApp;
 
 function syncRightArrow(){
   const panel = document.getElementById("formPanel");

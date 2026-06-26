@@ -235,10 +235,10 @@ html {
 .borehole-pin {
   position: relative;
   display: block;
-  width: 24px;
-  height: 24px;
-  background: #2d89ef;
-  border: 3px solid #fff;
+  width: 20px;
+  height: 20px;
+  background: var(--marker-color, #2d89ef);
+  border: 2px solid #fff;
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
   box-shadow: 0 4px 12px rgba(18, 47, 84, 0.32);
@@ -249,8 +249,8 @@ html {
   position: absolute;
   left: 50%;
   bottom: -7px;
-  width: 15px;
-  height: 5px;
+  width: 13px;
+  height: 4px;
   background: rgba(18, 47, 84, 0.16);
   border-radius: 50%;
   transform: translateX(-50%) rotate(45deg);
@@ -260,8 +260,8 @@ html {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   background: #fff;
   border-radius: 50%;
   transform: translate(-50%, -50%);
@@ -274,7 +274,8 @@ html {
   top: 50%;
   width: 5px;
   height: 5px;
-  background: rgba(45, 137, 239, 0.24);
+  background: var(--marker-color, #2d89ef);
+  opacity: 0.24;
   border-radius: 50%;
   transform: translate(-50%, -50%);
 }
@@ -890,14 +891,79 @@ body.dark .leaflet-popup-tip {
 }
 
 .borehole-filter select {
+  display: none;
+}
+
+.year-filter-custom {
+  position: relative;
+  min-width: 0;
+}
+
+.year-filter-button {
   width: 100%;
   min-width: 0;
-  padding: 7px 6px;
+  padding: 7px 24px 7px 7px;
   border: 1px solid #c8d7ee;
   border-radius: 7px;
   background: #fff;
   color: #1d2939;
   font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+}
+
+.year-filter-button::after {
+  content: "⌄";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  color: #2d89ef;
+  transform: translateY(-50%);
+}
+
+.year-filter-button.open::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.year-filter-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 3600;
+  display: none;
+  max-height: 190px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid #c8d7ee;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(16, 24, 40, 0.18);
+}
+
+.year-filter-menu.open {
+  display: block;
+}
+
+.year-filter-option {
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #1d2939;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.year-filter-option:hover,
+.year-filter-option.active {
+  background: #eef5ff;
+  color: #155db7;
 }
 
 #yearFilterCount {
@@ -1149,6 +1215,81 @@ body.dark .leaflet-popup-tip {
 
 .help-box a:hover {
   text-decoration: underline;
+}
+
+.help-actions {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.help-action {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 32px;
+  padding: 7px 8px;
+  border: 1px solid #b8d7ff;
+  border-radius: 8px;
+  background: #fff;
+  color: #155db7 !important;
+  font-size: 11.5px !important;
+  font-weight: 800 !important;
+  line-height: 1.15;
+  text-align: center;
+  text-decoration: none !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.help-action:hover {
+  background: #eef5ff;
+  text-decoration: none !important;
+}
+
+.install-action {
+  background: #2d89ef;
+  color: #fff !important;
+}
+
+.install-action:hover {
+  background: #176fcf;
+}
+
+.tg-action {
+  border-color: #b7e2ff;
+}
+
+.yt-action {
+  border-color: #ffc7c7;
+}
+
+.help-action-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 18px;
+}
+
+.help-action-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.yt-action .help-action-icon {
+  width: 22px;
+  flex-basis: 22px;
+}
+
+.yt-action .help-action-icon svg {
+  width: 22px;
+  height: 16px;
 }
 
 .stats-box {
@@ -1562,6 +1703,21 @@ body.dark .help-box a {
   color: #8fc4ff;
 }
 
+body.dark .help-action {
+  background: #333a44;
+  border-color: #56606f;
+  color: #8fc4ff !important;
+}
+
+body.dark .help-action:hover {
+  background: #4b5564;
+}
+
+body.dark .install-action {
+  background: #2d89ef;
+  color: #fff !important;
+}
+
 body.dark #layerControl * {
   background: #414956;
   color: #8fc4ff;
@@ -1631,6 +1787,23 @@ body.dark .borehole-filter select {
   background: #333a44;
   border-color: #56606f;
   color: #f7faff;
+}
+
+body.dark .year-filter-button,
+body.dark .year-filter-menu {
+  background: #333a44;
+  border-color: #56606f;
+  color: #f7faff;
+}
+
+body.dark .year-filter-option {
+  color: #f7faff;
+}
+
+body.dark .year-filter-option:hover,
+body.dark .year-filter-option.active {
+  background: #4b5564;
+  color: #8fc4ff;
 }
 
 body.dark #yearFilterCount {

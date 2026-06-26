@@ -139,7 +139,7 @@
   <label class="radio-item">
     <input type="radio" name="pipeType" value="1100">
     <span class="dot"></span>
-    <span class="pipe-name">90</span><span class="pipe-price"> — 1100 грн/м</span>
+    <span class="pipe-name">нПВХ-90</span><span class="pipe-price"> — 1100 грн/м</span>
   </label>
 
 </div>
@@ -212,6 +212,35 @@
     <span>Довідки</span>
     <b>Олег</b>
     <a href="tel:+380664887604">066-488-76-04</a>
+    <div class="help-actions">
+      <button type="button" class="help-action install-action" onclick="installApp()">
+        <span class="help-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="7" y="2" width="10" height="20" rx="2" stroke="currentColor" stroke-width="2"/>
+            <path d="M10 18h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span>Завантажити додаток на телефон</span>
+      </button>
+      <a class="help-action tg-action" href="https://t.me/PRO_buryty_v_Vodonos" target="_blank" rel="noopener">
+        <span class="help-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48">
+            <circle cx="24" cy="24" r="24" fill="#229ed9"/>
+            <path d="M11 23.2l25-9.7c1.2-.4 2.2.3 1.8 2l-4.3 20.1c-.3 1.4-1.2 1.8-2.4 1.1l-6.5-4.8-3.1 3c-.4.4-.7.7-1.4.7l.5-6.6 12-10.9c.5-.5-.1-.7-.8-.3L17 27.1l-6.4-2c-1.4-.5-1.4-1.4.4-2z" fill="#fff"/>
+          </svg>
+        </span>
+        <span>Telegram канал</span>
+      </a>
+      <a class="help-action yt-action" href="https://www.youtube.com/@PRO_buryty_v_vodonos" target="_blank" rel="noopener">
+        <span class="help-action-icon" aria-hidden="true">
+          <svg viewBox="0 0 64 44">
+            <rect width="64" height="44" rx="10" fill="#ff0000"/>
+            <path d="M26 13l18 9-18 9z" fill="#fff"/>
+          </svg>
+        </span>
+        <span>YouTube канал</span>
+      </a>
+    </div>
   </div>
 
 </div>
@@ -305,6 +334,12 @@
         <select id="yearFilter" onchange="setYearFilter(this.value)">
           <option value="all">Всі роки</option>
         </select>
+        <div class="year-filter-custom">
+          <button id="yearFilterButton" class="year-filter-button" type="button" onclick="toggleYearFilterMenu()">
+            Всі роки
+          </button>
+          <div id="yearFilterMenu" class="year-filter-menu"></div>
+        </div>
         <span id="yearFilterCount">0 свердловин</span>
       </div>
     </div>
@@ -322,7 +357,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
-<script src="app.js?v=20260618-10"></script>
+<script src="app.js?v=20260626-10"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
