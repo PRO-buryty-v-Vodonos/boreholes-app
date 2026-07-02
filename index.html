@@ -15,7 +15,7 @@
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
-  <link rel="stylesheet" href="style.css?v=20260626-17" />
+  <link rel="stylesheet" href="style.css?v=20260702-4" />
 </head>
 <body>
    <div id="searchBox">
@@ -283,6 +283,26 @@
 
   <!-- КНОПКИ -->
 <div class="btn-stack">
+  <div class="debit-card">
+    <button class="debit-toggle collapsible-toggle" type="button" onclick="togglePanelSection('debitPanel', this)" aria-expanded="false">
+      Заміри дебіту
+      <span class="collapse-indicator" aria-hidden="true">⌄</span>
+    </button>
+    <div id="debitPanel" class="debit-panel collapsible-content collapsed">
+      <div class="debit-grid">
+        <label>
+          <span>Тара, л</span>
+          <input id="debitVolume" type="number" inputmode="decimal" min="0" step="0.1" placeholder="20" />
+        </label>
+        <label>
+          <span>Час, сек</span>
+          <input id="debitSeconds" type="number" inputmode="decimal" min="0" step="0.1" placeholder="35" />
+        </label>
+      </div>
+      <div class="debit-result" id="debitResult">Введи тару і час — дебіт порахується автоматично</div>
+    </div>
+  </div>
+
   <div class="btn-row">
     <span class="btn-icon">
       <svg viewBox="0 0 24 24" fill="none">
@@ -336,7 +356,7 @@
       <div id="yearFilterBody" class="borehole-filter-body collapsible-content">
         <div class="borehole-filter-row">
           <select id="yearFilter" onchange="setYearFilter(this.value)">
-            <option value="all">Всі роки</option>
+            <option value="all">Все</option>
           </select>
           <div class="year-filter-custom">
             <div id="yearFilterMenu" class="year-filter-menu" aria-label="Фільтр по року"></div>
@@ -359,7 +379,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
-<script src="app.js?v=20260626-17"></script>
+<script src="app.js?v=20260702-4"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";

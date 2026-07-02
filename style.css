@@ -233,6 +233,9 @@ html {
 .temp-borehole-marker {
   background: transparent !important;
   border: 0 !important;
+  backface-visibility: hidden;
+  transform-origin: center bottom;
+  will-change: transform;
 }
 
 .borehole-pin {
@@ -245,6 +248,8 @@ html {
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
   box-shadow: 0 4px 12px rgba(18, 47, 84, 0.32);
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
 .borehole-pin::after {
@@ -637,6 +642,82 @@ body.dark .leaflet-popup-tip {
   gap: 7px;
 }
 
+.debit-card {
+  padding: 8px;
+  border: 1px solid #d6e2ff;
+  border-radius: 8px;
+  background: #f4f7ff;
+}
+
+.debit-toggle {
+  width: 100%;
+  min-height: 28px;
+  margin: 0 !important;
+  padding: 5px 7px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: transparent !important;
+  color: #667085 !important;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: left;
+}
+
+.debit-toggle:hover {
+  background: #eef5ff !important;
+  color: #155db7 !important;
+}
+
+.debit-panel {
+  padding-top: 7px;
+}
+
+.debit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.debit-grid label {
+  display: block;
+  min-width: 0;
+}
+
+.debit-grid span {
+  display: block;
+  margin-bottom: 3px;
+  color: #667085;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.debit-grid input {
+  margin: 0 !important;
+  text-align: center;
+}
+
+.debit-result {
+  margin-top: 7px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: #fff;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.debit-result.has-value {
+  background: #eef5ff;
+  color: #155db7;
+  font-weight: 900;
+}
+
 .btn-row {
   position: relative;
   display: block;
@@ -943,6 +1024,16 @@ body.dark .leaflet-popup-tip {
   cursor: pointer;
 }
 
+.year-filter-option[data-value="all"] {
+  flex: 0 0 46px;
+  min-width: 46px;
+}
+
+.year-filter-option[data-value="before-2022"] {
+  flex: 0 0 66px;
+  min-width: 66px;
+}
+
 #formPanel .year-filter-option {
   width: auto !important;
   margin: 0 !important;
@@ -951,6 +1042,16 @@ body.dark .leaflet-popup-tip {
   border-radius: 999px !important;
   background: #fff !important;
   color: #1d2939 !important;
+}
+
+#formPanel .year-filter-option[data-value="all"] {
+  flex: 0 0 46px !important;
+  min-width: 46px !important;
+}
+
+#formPanel .year-filter-option[data-value="before-2022"] {
+  flex: 0 0 66px !important;
+  min-width: 66px !important;
 }
 
 .year-filter-option:hover,
@@ -1787,23 +1888,41 @@ body.dark .admin-actions button:last-child {
 }
 
 body.dark .admin-export-btn,
-body.dark .borehole-filter {
+body.dark .borehole-filter,
+body.dark .debit-card {
   background: #414956;
   border-color: #56606f;
   color: #8fc4ff;
 }
 
-body.dark .borehole-filter-toggle {
+body.dark .borehole-filter-toggle,
+body.dark .debit-toggle {
   color: #c8d1dd;
 }
 
-body.dark #formPanel .borehole-filter-toggle {
+body.dark #formPanel .borehole-filter-toggle,
+body.dark #formPanel .debit-toggle {
   color: #c8d1dd !important;
 }
 
-body.dark #formPanel .borehole-filter-toggle:hover {
+body.dark #formPanel .borehole-filter-toggle:hover,
+body.dark #formPanel .debit-toggle:hover {
   background: #4b5564 !important;
   color: #8fc4ff !important;
+}
+
+body.dark .debit-grid span {
+  color: #c8d1dd;
+}
+
+body.dark .debit-result {
+  background: #333a44;
+  color: #c8d1dd;
+}
+
+body.dark .debit-result.has-value {
+  background: #27384f;
+  color: #8fc4ff;
 }
 
 body.dark .borehole-filter select {
@@ -1926,6 +2045,18 @@ body.dark .estimate-pdf-btn:hover {
     min-width: 42px;
     padding: 5px 5px;
     font-size: 10.5px;
+  }
+
+  .year-filter-option[data-value="all"],
+  #formPanel .year-filter-option[data-value="all"] {
+    flex-basis: 42px !important;
+    min-width: 42px !important;
+  }
+
+  .year-filter-option[data-value="before-2022"],
+  #formPanel .year-filter-option[data-value="before-2022"] {
+    flex-basis: 62px !important;
+    min-width: 62px !important;
   }
 
   .search-icon {

@@ -1,5 +1,7 @@
 // 🗺 карта
-const map = L.map('map').setView([49.5883, 34.5514], 10);
+const map = L.map('map', {
+  markerZoomAnimation: false
+}).setView([49.5883, 34.5514], 10);
 
 const POLTAVA_CENTER = {
   lat: 49.5883,
@@ -187,21 +189,48 @@ const ADMIN_MARKER_COLORS = [
   "#f4a261",
   "#7c3aed"
 ];
+const PRIMARY_ADMIN_EMAIL_KEY = "boreholes-app:primary-admin-email";
+const THEME_STORAGE_KEY = "boreholes-app:theme";
 
 function getCurrentAdminUser() {
   return window.firebaseAuth?.currentUser || null;
 }
 
+function normalizeAdminEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 function getCurrentAdminEmail() {
-  return getCurrentAdminUser()?.email || "";
+  return normalizeAdminEmail(getCurrentAdminUser()?.email);
 }
 
 function getCurrentAdminUid() {
   return getCurrentAdminUser()?.uid || "";
 }
 
-function getAdminColorIndex(value) {
-  const text = normalizePlaceText(value);
+function getPrimaryAdminEmail() {
+  try {
+    return normalizeAdminEmail(localStorage.getItem(PRIMARY_ADMIN_EMAIL_KEY));
+  } catch (e) {
+    return "";
+  }
+}
+
+function rememberPrimaryAdminEmail(email) {
+  const normalizedEmail = normalizeAdminEmail(email);
+  if (!normalizedEmail) return;
+
+  try {
+    if (!localStorage.getItem(PRIMARY_ADMIN_EMAIL_KEY)) {
+      localStorage.setItem(PRIMARY_ADMIN_EMAIL_KEY, normalizedEmail);
+    }
+  } catch (e) {
+    console.log("Primary admin email save error:", e);
+  }
+}
+
+function getAdminColorIndex(value, colorCount = ADMIN_MARKER_COLORS.length) {
+  const text = normalizeAdminEmail(value);
   if (!text) return 0;
 
   let hash = 0;
@@ -209,22 +238,31 @@ function getAdminColorIndex(value) {
     hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
   }
 
-  return Math.abs(hash) % ADMIN_MARKER_COLORS.length;
+  return Math.abs(hash) % colorCount;
 }
 
 function getBoreholeAdminKey(data) {
-  return data?.createdByEmail ||
-    data?.createdBy ||
+  return normalizeAdminEmail(
+    data?.createdByEmail ||
     data?.adminEmail ||
     data?.updatedByEmail ||
-    "";
+    data?.createdBy ||
+    ""
+  );
 }
 
 function getBoreholeMarkerColor(data) {
   const adminKey = getBoreholeAdminKey(data);
-  return adminKey
-    ? ADMIN_MARKER_COLORS[getAdminColorIndex(adminKey)]
-    : ADMIN_MARKER_COLORS[0];
+  const currentAdminEmail = getCurrentAdminEmail();
+  const primaryAdminEmail = getPrimaryAdminEmail();
+
+  if (!adminKey || adminKey === currentAdminEmail || adminKey === primaryAdminEmail) {
+    return ADMIN_MARKER_COLORS[0];
+  }
+
+  const secondaryColorCount = Math.max(ADMIN_MARKER_COLORS.length - 1, 1);
+  const secondaryIndex = 1 + getAdminColorIndex(adminKey, secondaryColorCount);
+  return ADMIN_MARKER_COLORS[secondaryIndex] || ADMIN_MARKER_COLORS[0];
 }
 
 function createBoreholeIcon(data = {}) {
@@ -407,9 +445,9 @@ function updateYearFilterCount() {
 }
 
 function getYearFilterLabel(value) {
-  if (value === "all") return "Всі роки";
+  if (value === "all") return "Все";
   if (value === "before-2022") return "до 2022";
-  return value || "Всі роки";
+  return value || "Все";
 }
 
 function renderYearFilterMenu(options) {
@@ -442,10 +480,10 @@ function refreshYearFilterOptions() {
     .sort((a, b) => Number(b) - Number(a));
 
   const filterOptions = [
-    { value: "all", label: "Всі роки" }
+    { value: "all", label: "Все" }
   ];
 
-  select.innerHTML = '<option value="all">Всі роки</option>';
+  select.innerHTML = '<option value="all">Все</option>';
 
   const hasBefore2022 = boreholes.some(item => {
     const year = getBoreholeYear(item);
@@ -975,6 +1013,10 @@ function requireAdmin() {
 function setAdminUI(user) {
   isAdmin = Boolean(user);
 
+  if (isAdmin) {
+    rememberPrimaryAdminEmail(user?.email);
+  }
+
   const status = document.getElementById("authStatus");
   if (status) {
     status.textContent = isAdmin ? "Адмін" : "Гостьовий перегляд";
@@ -986,6 +1028,10 @@ function setAdminUI(user) {
 
   if (isAdmin) {
     loadBoreholes();
+  } else {
+    boreholeMarkers.forEach(({ marker, data }) => {
+      marker.setIcon(createBoreholeIcon(data));
+    });
   }
 }
 
@@ -1113,6 +1159,109 @@ function getExcelNumber(value) {
 function getFieldNumber(id) {
   const el = document.getElementById(id);
   return getNumberFromText(el ? el.value : "");
+}
+
+function getOptionalFieldNumber(id) {
+  const el = document.getElementById(id);
+  const raw = String(el?.value ?? "").trim();
+  if (!raw) return "";
+  const number = getNumberFromText(raw);
+  return Number.isFinite(number) && number > 0 ? number : "";
+}
+
+function calculateDebitValues(volumeLiters, seconds) {
+  const volume = typeof volumeLiters === "number" ? volumeLiters : getNumberFromText(volumeLiters);
+  const time = typeof seconds === "number" ? seconds : getNumberFromText(seconds);
+
+  if (!Number.isFinite(volume) || !Number.isFinite(time) || volume <= 0 || time <= 0) {
+    return {
+      volumeLiters: "",
+      seconds: "",
+      litersMinute: "",
+      cubicHour: ""
+    };
+  }
+
+  const litersMinute = (volume / time) * 60;
+  const cubicHour = (litersMinute * 60) / 1000;
+
+  return {
+    volumeLiters: volume,
+    seconds: time,
+    litersMinute,
+    cubicHour
+  };
+}
+
+function getDebitDataFromForm() {
+  return calculateDebitValues(
+    getOptionalFieldNumber("debitVolume"),
+    getOptionalFieldNumber("debitSeconds")
+  );
+}
+
+function getDebitLabel(data) {
+  const values = calculateDebitValues(
+    data?.debitVolumeLiters,
+    data?.debitFillSeconds
+  );
+
+  if (!values.litersMinute || !values.cubicHour) return "";
+
+  return `${formatDecimalComma(values.litersMinute, 1)} л/хв / ${formatDecimalComma(values.cubicHour, 2)} м³/год`;
+}
+
+function updateDebitResult() {
+  const result = document.getElementById("debitResult");
+  if (!result) return;
+
+  const values = getDebitDataFromForm();
+  if (!values.litersMinute || !values.cubicHour) {
+    result.textContent = "Введи тару і час — дебіт порахується автоматично";
+    result.classList.remove("has-value");
+    return;
+  }
+
+  result.textContent = `Дебіт: ${formatDecimalComma(values.litersMinute, 1)} л/хв / ${formatDecimalComma(values.cubicHour, 2)} м³/год`;
+  result.classList.add("has-value");
+}
+
+function setDebitUI(data = {}) {
+  const volumeEl = document.getElementById("debitVolume");
+  const secondsEl = document.getElementById("debitSeconds");
+
+  if (volumeEl) volumeEl.value = data.debitVolumeLiters || "";
+  if (secondsEl) secondsEl.value = data.debitFillSeconds || "";
+
+  updateDebitResult();
+}
+
+function clearDebitUI() {
+  setDebitUI({});
+}
+
+function bindDebitInputs() {
+  ["debitVolume", "debitSeconds"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("input", updateDebitResult);
+    el.addEventListener("change", updateDebitResult);
+  });
+}
+
+function getBoreholePopupHtml(data) {
+  const debitLabel = getDebitLabel(data);
+
+  return `
+    <b>№${data.num}</b><br>
+    ${getVisiblePlaceLabel(data) ? `${getVisiblePlaceLabel(data)}<br>` : ""}
+    Ґрунт: ${data.soil}<br>
+    Глибина: ${data.depth} м<br>
+    Рівень першої води: ${data.water} м<br>
+    Висота над рівнем моря: ${data.elevation} м<br>
+    ${debitLabel ? `Дебіт: ${debitLabel}<br>` : ""}
+    ${data.distance ? `📍 відстань від Полтави: ${formatDecimalComma(data.distance, 2)} км<br>` : ""}
+  `;
 }
 
 function formatDistanceField(value) {
@@ -1559,6 +1708,7 @@ async function saveBorehole() {
     }
   }
 
+  const debitData = getDebitDataFromForm();
   const data = {
     num: document.getElementById("num").value,
     depth: document.getElementById("depth").value,
@@ -1572,9 +1722,14 @@ async function saveBorehole() {
     district: place.district || "",
     neighbourhood: place.neighbourhood || place.neighborhood || place.suburb || "",
     placeLabel: place.label || getPlaceLabel(place),
+    debitVolumeLiters: debitData.volumeLiters,
+    debitFillSeconds: debitData.seconds,
+    debitLitersMinute: debitData.litersMinute,
+    debitCubicHour: debitData.cubicHour,
     lat: currentLatLng.lat,
     lng: currentLatLng.lng,
     createdAt: Date.now(),
+    adminEmail: getCurrentAdminEmail(),
     createdByEmail: getCurrentAdminEmail(),
     createdByUid: getCurrentAdminUid(),
     updatedByEmail: getCurrentAdminEmail(),
@@ -1670,6 +1825,7 @@ function addMarker(data) {
     document.getElementById("water").value = data.water || "";
     document.getElementById("soil").value = data.soil || "";
     document.getElementById("note").value = data.note || "";
+    setDebitUI(data);
     setElevationUI(data.elevation || "");
     setDistanceUI(data.distance || "");
 
@@ -1710,15 +1866,7 @@ function addMarker(data) {
     }
   });
 
-  marker.bindPopup(`
-    <b>№${data.num}</b><br>
-    ${getVisiblePlaceLabel(data) ? `${getVisiblePlaceLabel(data)}<br>` : ""}
-    Ґрунт: ${data.soil}<br>
-    Глибина: ${data.depth} м<br>
-    Рівень першої води: ${data.water} м<br>
-    Висота над рівнем моря: ${data.elevation} м<br>
-    ${data.distance ? `📍 відстань від Полтави: ${formatDecimalComma(data.distance, 2)} км<br>` : ""}
-  `);
+  marker.bindPopup(getBoreholePopupHtml(data));
 }
 
 // 🗑 видалення
@@ -1773,6 +1921,7 @@ function clearForm(){
   setTransportByDistance("");
   resetEstimateDepth();
   clearPlaceUI();
+  clearDebitUI();
 }
 
 
@@ -1798,6 +1947,7 @@ function editBorehole(id){
   document.getElementById("water").value = borehole.water;
   document.getElementById("soil").value = borehole.soil;
   document.getElementById("note").value = borehole.note;
+  setDebitUI(borehole);
 
   // ✅ ОЦЕ ВАЖЛИВО
   setElevationUI(borehole.elevation || "");
@@ -1832,6 +1982,7 @@ async function updateBorehole() {
   if (!b) return;
 
   const place = getPlaceFromForm();
+  const debitData = getDebitDataFromForm();
   const updatedData = {
     num: document.getElementById("num").value,
     depth: document.getElementById("depth").value,
@@ -1844,6 +1995,11 @@ async function updateBorehole() {
     community: place.community || "",
     district: place.district || "",
     placeLabel: place.label || "",
+    debitVolumeLiters: debitData.volumeLiters,
+    debitFillSeconds: debitData.seconds,
+    debitLitersMinute: debitData.litersMinute,
+    debitCubicHour: debitData.cubicHour,
+    adminEmail: b.adminEmail || b.createdByEmail || getCurrentAdminEmail(),
     createdByEmail: b.createdByEmail || getCurrentAdminEmail(),
     createdByUid: b.createdByUid || getCurrentAdminUid(),
     updatedByEmail: getCurrentAdminEmail(),
@@ -1866,21 +2022,14 @@ async function updateBorehole() {
     if (storedMarker) {
       storedMarker.data = b;
       storedMarker.marker.setIcon(createBoreholeIcon(b));
+      storedMarker.marker.setPopupContent(getBoreholePopupHtml(b));
     }
     refreshYearFilterOptions();
     applyYearFilter();
     renderPlaceStats(b);
 
     if (selectedMarker) {
-      selectedMarker.setPopupContent(`
-        <b>№${b.num}</b><br>
-        ${getVisiblePlaceLabel(b) ? `${getVisiblePlaceLabel(b)}<br>` : ""}
-        Ґрунт: ${b.soil}<br>
-        Глибина: ${b.depth} м<br>
-        Рівень першої води: ${b.water} м<br>
-        Висота над рівнем моря: ${b.elevation} м<br>
-        📍 відстань від Полтави: ${formatDecimalComma(b.distance, 2)} км<br>
-      `);
+      selectedMarker.setPopupContent(getBoreholePopupHtml(b));
     }
 
     closePanel();
@@ -1894,6 +2043,7 @@ async function updateBorehole() {
     if (storedMarker) {
       storedMarker.data = b;
       storedMarker.marker.setIcon(createBoreholeIcon(b));
+      storedMarker.marker.setPopupContent(getBoreholePopupHtml(b));
     }
     refreshYearFilterOptions();
     applyYearFilter();
@@ -1957,11 +2107,36 @@ function calculateBS() {
   // видалено
 }
 
-function toggleTheme() {
-  document.body.classList.toggle("dark");
+function setTheme(isDark) {
+  document.body.classList.toggle("dark", Boolean(isDark));
   const themeButton = document.querySelector(".theme-card");
   if (themeButton) {
     themeButton.setAttribute("aria-pressed", document.body.classList.contains("dark") ? "true" : "false");
+  }
+
+  const themeColor = document.body.classList.contains("dark") ? "#111827" : "#2d89ef";
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", themeColor);
+  document.querySelector('meta[name="msapplication-navbutton-color"]')?.setAttribute("content", themeColor);
+}
+
+function loadSavedTheme() {
+  let savedTheme = "";
+  try {
+    savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || "";
+  } catch (e) {
+    console.log("Theme load error:", e);
+  }
+
+  setTheme(savedTheme === "dark");
+}
+
+function toggleTheme() {
+  const nextIsDark = !document.body.classList.contains("dark");
+  setTheme(nextIsDark);
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, nextIsDark ? "dark" : "light");
+  } catch (e) {
+    console.log("Theme save error:", e);
   }
 }
 
@@ -2832,6 +3007,10 @@ function exportBoreholesExcel() {
       "Громада",
       "Глибина, (м)",
       "Рівень 1-ї води, (м)",
+      "Тара дебіту, (л)",
+      "Час заповнення, (сек)",
+      "Дебіт, (л/хв)",
+      "Дебіт, (м³/год)",
       "Ґрунт",
       "Висота над рівнем моря, (м)",
       "Відстань від Полтави до місця буріння, (км)",
@@ -2846,6 +3025,10 @@ function exportBoreholesExcel() {
       item.community || "",
       getExcelNumber(item.depth),
       getExcelNumber(item.water),
+      getExcelNumber(item.debitVolumeLiters),
+      getExcelNumber(item.debitFillSeconds),
+      getExcelNumber(item.debitLitersMinute),
+      getExcelNumber(item.debitCubicHour),
       item.soil,
       getExcelNumber(item.elevation),
       getExcelNumber(item.distance),
@@ -2859,7 +3042,7 @@ function exportBoreholesExcel() {
   const detailSheet = XLSX.utils.aoa_to_sheet(detailRows);
 
   applyExcelTableStyle(detailSheet);
-  setSheetNumberFormat(detailSheet, [4, 5, 7, 8], "0.00");
+  setSheetNumberFormat(detailSheet, [4, 5, 6, 7, 8, 9, 11, 12], "0.00");
 
   detailSheet["!cols"] = [
     { wch: 11.5 },
@@ -2868,6 +3051,10 @@ function exportBoreholesExcel() {
     { wch: 31 },
     { wch: 11.5 },
     { wch: 12.875 },
+    { wch: 11.5 },
+    { wch: 14.5 },
+    { wch: 12.5 },
+    { wch: 13.5 },
     { wch: 15.625 },
     { wch: 10.5 },
     { wch: 17.625 },
@@ -3070,8 +3257,10 @@ window.addEventListener("load", function () {
 
   // калькулятор
   bindCostInputs();
+  bindDebitInputs();
   setDefaultCostValues();
   calculateCost();
+  updateDebitResult();
   initMobileCollapsibleSections();
 
   // textarea note
@@ -3169,6 +3358,7 @@ async function loadBoreholes() {
   applyYearFilter();
 }
 
+loadSavedTheme();
 window.addEventListener("load", loadBoreholes);
 
 function startAddPoint() {
